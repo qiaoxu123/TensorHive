@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>机器资源池</title>
+<style>
+/* ===== 设计令牌：参考 acta（Zotero 风格中性面 + 单一强调色） ===== */
+:root{
+  --surface:#ffffff; --surface-sunken:#e9ebef; --surface-raised:#ffffff;
+  --panel:#f6f7f9; --border:#d6dae1;
+  --content:#1f2329; --content-muted:#545b66; --content-subtle:#828a96;
+  --accent:#b3261e; --accent-fg:#ffffff; --accent-soft:#fdecea;
+  --ok:#16a34a; --warn:#d97706; --urgent:#dc2626;
+  --track:#e6e9ee;
+  --radius:14px; --shadow:0 1px 2px rgba(16,20,28,.04),0 4px 16px rgba(16,20,28,.06);
+}
+.dark{
+  --surface:#1c1f24; --surface-sunken:#121419; --surface-raised:#24272e;
+  --panel:#1e222a; --border:#343b45;
+  --content:#e6e8ec; --content-muted:#a8aeb9; --content-subtle:#717885;
+  --accent:#e5645b; --accent-fg:#1c1f24; --accent-soft:#3a2624;
+  --ok:#42c877; --warn:#e0a54a; --urgent:#f0685f;
+  --track:#2b303a; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{font-size:16px}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  background:var(--surface-sunken); color:var(--content);
+  -webkit-font-smoothing:antialiased; font-size:14px;
+}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--content-subtle);background-clip:content-box}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit}
+
+/* ===== 登录页 ===== */
+#login{position:fixed;inset:0;display:grid;place-items:center;
+  background:radial-gradient(1200px 600px at 50% -10%, var(--accent-soft), var(--surface-sunken) 60%)}
+.login-card{width:360px;max-width:92vw;background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;box-shadow:var(--shadow);padding:32px 28px}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand .logo{width:36px;height:36px;border-radius:10px;background:var(--accent);color:var(--accent-fg);
+  display:grid;place-items:center;font-weight:700}
+.brand h1{font-size:19px;margin:0;font-weight:650;letter-spacing:.2px}
+.login-card .sub{color:var(--content-subtle);font-size:12.5px;margin:2px 0 22px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--content-muted);margin-bottom:6px}
+.field input{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;
+  background:var(--panel);color:var(--content);font-size:14px;outline:none}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;
+  border-radius:10px;padding:10px 14px;font-size:14px;font-weight:550;background:var(--panel);color:var(--content)}
+.btn:hover{border-color:var(--border)}
+.btn-primary{background:var(--accent);color:var(--accent-fg);width:100%;padding:12px}
+.btn-primary:hover{filter:brightness(.95);border-color:transparent}
+.btn-ghost{background:transparent}
+.err{color:var(--urgent);font-size:12.5px;min-height:18px;margin-top:8px}
+
+/* ===== 应用骨架 ===== */
+#app{display:none;height:100%}
+.shell{display:grid;grid-template-columns:74px 1fr;height:100%}
+.side{background:var(--surface-sunken);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:6px}
+.side .logo{width:40px;height:40px;border-radius:12px;background:var(--accent);color:var(--accent-fg);
+  display:grid;place-items:center;font-weight:700;margin-bottom:10px}
+.nav{display:flex;flex-direction:column;gap:4px;width:100%;align-items:center}
+.nav button{width:52px;height:52px;border-radius:12px;background:transparent;border:1px solid transparent;
+  color:var(--content-muted);display:grid;place-items:center;gap:0}
+.nav button svg{width:21px;height:21px}
+.nav button .lbl{font-size:10px;margin-top:2px;line-height:1}
+.nav button:hover{background:var(--panel);color:var(--content)}
+.nav button.active{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.dark .nav button.active{color:var(--content)}
+.side .spacer{flex:1}
+
+.main{display:flex;flex-direction:column;min-width:0;background:var(--surface-sunken)}
+.topbar{height:60px;display:flex;align-items:center;gap:14px;padding:0 22px;background:var(--surface);
+  border-bottom:1px solid var(--border)}
+.topbar h2{font-size:16px;margin:0;font-weight:640}
+.topbar .muted{color:var(--content-subtle);font-size:12.5px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);
+  border-radius:999px;padding:5px 6px 5px 12px;font-size:13px}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-fg);
+  display:grid;place-items:center;font-size:12px;font-weight:650}
+.icon-btn{width:36px;height:36px;border-radius:10px;background:var(--panel);border:1px solid var(--border);
+  display:grid;place-items:center;color:var(--content-muted)}
+.icon-btn:hover{color:var(--content)}
+.icon-btn svg{width:18px;height:18px}
+
+.content{padding:22px;overflow:auto;flex:1}
+.section-title{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.section-title h3{font-size:15px;margin:0;font-weight:640}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--content-subtle);margin-left:auto}
+.live .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+
+/* ===== 概览统计条 ===== */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.stat .k{font-size:12px;color:var(--content-subtle)}
+.stat .v{font-size:24px;font-weight:680;margin-top:4px;letter-spacing:.3px}
+.stat .v small{font-size:13px;font-weight:500;color:var(--content-subtle)}
+
+/* ===== 机器卡片 ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.card-head{display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid var(--border)}
+.status-dot{width:10px;height:10px;border-radius:50%;flex:none}
+.status-dot.on{background:var(--ok)} .status-dot.off{background:var(--content-subtle)}
+.card-head .name{font-weight:640;font-size:14.5px}
+.card-head .host{font-size:11.5px;color:var(--content-subtle)}
+.pill{margin-left:auto;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px}
+.pill.busy{background:var(--accent-soft);color:var(--accent)}
+.pill.free{background:rgba(22,163,74,.12);color:var(--ok)}
+.pill.offline{background:var(--panel);color:var(--content-subtle)}
+
+.card-body{padding:16px;display:flex;flex-direction:column;gap:16px}
+.gpu{display:flex;gap:14px;align-items:center}
+.ring{position:relative;width:66px;height:66px;flex:none}
+.ring .bg{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(var(--rc) calc(var(--p)*3.6deg), var(--track) 0)}
+.ring .hole{position:absolute;inset:7px;border-radius:50%;background:var(--surface);
+  display:grid;place-items:center;text-align:center}
+.ring .hole b{font-size:16px;font-weight:700;line-height:1}
+.ring .hole span{font-size:9px;color:var(--content-subtle)}
+.gpu-info{min-width:0;flex:1}
+.gpu-info .gn{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gpu-info .mem{font-size:12px;color:var(--content-muted);margin-top:2px}
+.mini{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}
+.mini div{font-size:11.5px;color:var(--content-subtle)}
+.mini b{color:var(--content);font-weight:600}
+
+.bar{height:8px;border-radius:6px;background:var(--track);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:6px;transition:width .5s ease}
+.metric-row{display:flex;align-items:center;gap:10px}
+.metric-row .lab{font-size:12px;color:var(--content-muted);width:64px;flex:none}
+.metric-row .bar{flex:1}
+.metric-row .pct{font-size:12px;font-weight:600;width:66px;text-align:right;color:var(--content)}
+
+.users-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:2px}
+.users-row .lab{font-size:12px;color:var(--content-muted)}
+.utag{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--border);
+  border-radius:999px;padding:3px 9px 3px 4px;font-size:12px}
+.utag .av{width:18px;height:18px;border-radius:50%;background:var(--content-subtle);color:#fff;
+  display:grid;place-items:center;font-size:10px}
+.utag.rsv{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.utag.rsv .av{background:var(--accent)}
+.card-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px}
+.card-foot .btn{flex:1;font-size:13px;padding:9px}
+
+/* ===== 预约视图 ===== */
+.res-list{display:flex;flex-direction:column;gap:10px;max-width:900px}
+.res-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;
+  display:flex;align-items:center;gap:14px}
+.res-item .when{font-size:12.5px;color:var(--content-muted)}
+.res-item .who{font-weight:600}
+.res-item .tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--panel);color:var(--content-subtle)}
+.res-item .tag.active{background:rgba(22,163,74,.12);color:var(--ok)}
+.res-item .tag.upcoming{background:var(--accent-soft);color:var(--accent)}
+.empty{text-align:center;color:var(--content-subtle);padding:48px;font-size:13.5px}
+
+/* ===== 弹窗 ===== */
+.modal-bg{position:fixed;inset:0;background:rgba(16,20,28,.42);display:none;place-items:center;z-index:50;
+  backdrop-filter:blur(2px)}
+.modal-bg.show{display:grid}
+.modal{width:440px;max-width:94vw;background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;box-shadow:var(--shadow);padding:22px}
+.modal h3{margin:0 0 4px;font-size:16px}
+.modal .sub{color:var(--content-subtle);font-size:12.5px;margin-bottom:16px}
+.modal .field select,.modal .field input{width:100%;padding:10px 12px;border:1px solid var(--border);
+  border-radius:10px;background:var(--panel);color:var(--content);font-size:14px;outline:none}
+.modal-foot{display:flex;gap:10px;margin-top:18px}
+.modal-foot .btn{flex:1}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--content);color:var(--surface);
+  padding:11px 18px;border-radius:10px;font-size:13px;z-index:100;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
+.skeleton{background:linear-gradient(90deg,var(--panel),var(--track),var(--panel));
+  background-size:200% 100%;animation:sk 1.4s infinite;border-radius:8px}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ===== 时长徽标 / 详情按钮 ===== */
+.dur{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;
+  border-radius:999px;background:var(--panel);color:var(--content-muted);border:1px solid var(--border)}
+.dur.on{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+
+/* ===== 详情抽屉 ===== */
+.drawer-bg{position:fixed;inset:0;background:rgba(16,20,28,.42);display:none;z-index:60;backdrop-filter:blur(2px)}
+.drawer-bg.show{display:block}
+.drawer{position:absolute;top:0;right:0;height:100%;width:440px;max-width:94vw;background:var(--surface);
+  border-left:1px solid var(--border);box-shadow:-8px 0 30px rgba(16,20,28,.14);
+  transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:auto}
+.drawer-bg.show .drawer{transform:translateX(0)}
+.dh{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);
+  padding:16px 20px;display:flex;align-items:center;gap:10px;z-index:2}
+.dh .name{font-size:16px;font-weight:660}.dh .host{font-size:12px;color:var(--content-subtle)}
+.dh .x{margin-left:auto;width:32px;height:32px;border-radius:9px;background:var(--panel);border:1px solid var(--border);
+  display:grid;place-items:center;color:var(--content-muted);font-size:18px;cursor:pointer}
+.db{padding:18px 20px;display:flex;flex-direction:column;gap:20px}
+.blk h4{font-size:12px;text-transform:none;color:var(--content-subtle);margin:0 0 10px;font-weight:600;
+  letter-spacing:.3px;display:flex;align-items:center;gap:7px}
+.blk h4 svg{width:15px;height:15px}
+.specs{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px}
+.specs .sk{color:var(--content-subtle)}.specs .sv{color:var(--content);text-align:right;font-weight:500}
+.sshbox{display:flex;align-items:center;gap:8px;background:var(--surface-sunken);border:1px solid var(--border);
+  border-radius:10px;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.sshbox code{flex:1;overflow:auto;white-space:nowrap;color:var(--content)}
+.sshbox button{flex:none;background:var(--accent);color:var(--accent-fg);border:none;border-radius:8px;
+  padding:6px 12px;font-size:12px;font-weight:600}
+.svc{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);
+  border-radius:10px;background:var(--surface-raised);margin-bottom:8px}
+.svc .si{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.svc .meta{flex:1;min-width:0}.svc .meta .t{font-weight:600;font-size:13px}
+.svc .meta .p{font-size:11.5px;color:var(--content-subtle)}
+.svc a,.svc button{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);
+  background:var(--panel);color:var(--content);text-decoration:none}
+.svc a:hover{border-color:var(--accent);color:var(--accent)}
+.ws{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--content-muted)}
+.ws code{background:var(--surface-sunken);border:1px solid var(--border);border-radius:6px;padding:2px 7px;
+  font-family:ui-monospace,monospace;color:var(--content)}
+.hint{font-size:12px;color:var(--content-subtle);background:var(--panel);border:1px dashed var(--border);
+  border-radius:10px;padding:10px 12px}
+.chkline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--content-muted);margin:2px 0 6px;cursor:pointer}
+.chkline input{width:16px;height:16px;accent-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div id="login">
+  <div class="login-card">
+    <div class="brand"><div class="logo">机</div><h1>机器资源池</h1></div>
+    <div class="sub">统一入口 · 实时查看谁在用哪台机器</div>
+    <form id="loginForm">
+      <div class="field"><label>用户名</label><input id="lUser" autocomplete="username" autofocus></div>
+      <div class="field"><label>密码</label><input id="lPass" type="password" autocomplete="current-password"></div>
+      <button class="btn btn-primary" type="submit" id="lBtn">登录</button>
+      <div class="err" id="lErr"></div>
+    </form>
+  </div>
+</div>
+
+<!-- 主应用 -->
+<div id="app">
+  <div class="shell">
+    <aside class="side">
+      <div class="logo">机</div>
+      <nav class="nav" id="nav">
+        <button data-view="overview" class="active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="lbl">概览</span>
+        </button>
+        <button data-view="reservations">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+          <span class="lbl">预约</span>
+        </button>
+      </nav>
+      <div class="spacer"></div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <h2 id="viewTitle">机器概览</h2>
+        <span class="muted" id="viewSub"></span>
+        <div class="top-right">
+          <button class="icon-btn" id="refreshBtn" title="立即刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+          </button>
+          <button class="icon-btn" id="themeBtn" title="切换主题">
+            <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </button>
+          <div class="chip"><span id="userName">—</span><div class="avatar" id="userAv">?</div></div>
+          <button class="icon-btn" id="logoutBtn" title="退出登录">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </button>
+        </div>
+      </header>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 机器详情抽屉 -->
+<div class="drawer-bg" id="drawerBg">
+  <aside class="drawer">
+    <div class="dh"><div><div class="name" id="dwName">—</div><div class="host" id="dwHost"></div></div>
+      <div class="x" id="dwClose">×</div></div>
+    <div class="db" id="dwBody"></div>
+  </aside>
+</div>
+
+<!-- 预约弹窗 -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>预约 / 认领机器</h3>
+    <div class="sub" id="modalSub">占用一段时间，让别人知道这台机器有人用</div>
+    <div class="field"><label style="font-size:12px;color:var(--content-muted)">选择 GPU 资源</label><select id="mRes"></select></div>
+    <div class="field"><label style="font-size:12px;color:var(--content-muted)">用途标题</label><input id="mTitle" placeholder="例如：训练 A 模型"></div>
+    <label class="chkline"><input type="checkbox" id="mUnknown"> ⏳ 使用时长未知（长期占用，之后可随时取消）</label>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1"><label style="font-size:12px;color:var(--content-muted)">开始</label><input id="mStart" type="datetime-local"></div>
+      <div class="field" style="flex:1" id="mEndWrap"><label style="font-size:12px;color:var(--content-muted)">结束</label><input id="mEnd" type="datetime-local"></div>
+    </div>
+    <div class="err" id="mErr"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="mCancel">取消</button>
+      <button class="btn btn-primary" id="mSubmit">确认预约</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = `http://${location.hostname}:1111/api`;
+const S = { access:null, refresh:null, user:null, view:'overview',
+  resources:[], metrics:{}, procs:{}, reservations:[], hostnames:[], loading:true, timer:null };
+
+/* ---------- 存储 ---------- */
+const store = {
+  get a(){return localStorage.getItem('th_access')}, set a(v){v?localStorage.setItem('th_access',v):localStorage.removeItem('th_access')},
+  get r(){return localStorage.getItem('th_refresh')}, set r(v){v?localStorage.setItem('th_refresh',v):localStorage.removeItem('th_refresh')},
+  get u(){return localStorage.getItem('th_user')}, set u(v){v?localStorage.setItem('th_user',v):localStorage.removeItem('th_user')},
+};
+S.access = store.a; S.refresh = store.r;
+
+/* 解析 JWT，取用户 id 与角色（TensorHive 的 /user 不支持 GET，身份信息在 token 里） */
+function parseJwt(t){ try{ const p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  return JSON.parse(decodeURIComponent(escape(atob(p)))); }catch(e){ return {}; } }
+function setUser(){ const p=parseJwt(S.access);
+  S.user={ id:p.identity, roles:(p.user_claims&&p.user_claims.roles)||[], username:store.u||'用户' };
+  renderUser(); }
+
+/* ---------- 请求封装（含 401 自动刷新） ---------- */
+async function api(path, opts={}, isRetry=false){
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if(S.access) headers['Authorization'] = 'Bearer '+S.access;
+  const res = await fetch(API+path, Object.assign({}, opts, {headers}));
+  if(res.status===401 && !isRetry){
+    if(await doRefresh()) return api(path, opts, true);
+    throw new Error('unauthorized');
+  }
+  if(!res.ok){ let m=res.status; try{m=(await res.json()).msg||m}catch(e){} throw new Error(m); }
+  const txt = await res.text(); return txt?JSON.parse(txt):null;
+}
+async function doRefresh(){
+  if(!S.refresh) return false;
+  try{
+    const res = await fetch(API+'/user/refresh',{method:'GET',headers:{'Authorization':'Bearer '+S.refresh}});
+    if(!res.ok) return false;
+    const d = await res.json(); S.access = d.access_token; store.a = S.access; return true;
+  }catch(e){ return false; }
+}
+
+/* ---------- 管理后端 (:8091) 请求封装 ---------- */
+const CTL = `http://${location.hostname}:8091/ctl`;
+async function ctl(path, opts={}, isRetry=false){
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if(S.access) headers['Authorization']='Bearer '+S.access;
+  const res = await fetch(CTL+path, Object.assign({}, opts, {headers}));
+  if(res.status===401 && !isRetry){ if(await doRefresh()) return ctl(path,opts,true); throw new Error('unauthorized'); }
+  if(!res.ok){ let m=res.status; try{m=(await res.json()).msg||m}catch(e){} throw new Error(m); }
+  const t=await res.text(); return t?JSON.parse(t):null;
+}
+
+/* ---------- 认领 / 时长 工具 ---------- */
+function resHost(uuid){ const r=S.resources.find(x=>x.id===uuid); return r?r.hostname:null; }
+function activeReservationForHost(host){
+  const now=Date.now();
+  return S.reservations.find(r=>!r.isCancelled && resHost(r.resourceId)===host &&
+    new Date(r.start).getTime()<=now && new Date(r.end).getTime()>=now);
+}
+function userClaimsHost(host){
+  if(S.user && (S.user.roles||[]).includes('admin')) return true;
+  const now=Date.now();
+  return S.reservations.some(r=>!r.isCancelled && r.userId===(S.user&&S.user.id) &&
+    resHost(r.resourceId)===host && new Date(r.start).getTime()<=now && new Date(r.end).getTime()>=now);
+}
+function isOpenEnded(r){ return (r.title||'').startsWith('[长期]') ||
+  (new Date(r.end)-new Date(r.start))>25*864e5; }
+function durText(fromMs){
+  let s=Math.max(0,Math.floor((Date.now()-fromMs)/1000));
+  const d=Math.floor(s/86400); s-=d*86400; const h=Math.floor(s/3600); s-=h*3600; const m=Math.floor(s/60);
+  if(d>0) return `${d}天${h}小时`; if(h>0) return `${h}小时${m}分`; return `${m}分钟`;
+}
+
+/* ---------- 登录 / 退出 ---------- */
+async function login(u,p){
+  const res = await fetch(API+'/user/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:u,password:p})});
+  if(!res.ok){ let m='用户名或密码错误'; try{m=(await res.json()).msg||m}catch(e){} throw new Error(m); }
+  const d = await res.json();
+  S.access=d.access_token; S.refresh=d.refresh_token; store.a=S.access; store.r=S.refresh; store.u=u;
+}
+function logout(){ S.access=S.refresh=S.user=null; store.a=null; store.r=null; store.u=null; clearInterval(S.timer); showLogin(); }
+
+/* ---------- 视图切换 ---------- */
+function showLogin(){ document.getElementById('login').style.display='grid'; document.getElementById('app').style.display='none'; }
+function showApp(){ document.getElementById('login').style.display='none'; document.getElementById('app').style.display='block'; }
+
+/* ---------- 数据加载 ---------- */
+async function loadStatic(){
+  setUser();
+  const [res, hosts] = await Promise.all([
+    api('/resources').catch(()=>[]),
+    api('/nodes/hostnames').catch(()=>[]),
+  ]);
+  S.resources = res||[]; S.hostnames = hosts||[];
+}
+async function loadLive(){
+  const hosts = S.hostnames.length?S.hostnames:[...new Set(S.resources.map(r=>r.hostname))];
+  const [metrics, reservations, ...procList] = await Promise.all([
+    api('/nodes/metrics').catch(()=>({})),
+    api('/reservations').catch(()=>[]),
+    ...hosts.map(h=>api(`/nodes/${h}/gpu/processes`).catch(()=>({})))
+  ]);
+  S.metrics = metrics||{}; S.reservations = reservations||[];
+  S.procs = {}; hosts.forEach((h,i)=>S.procs[h]=procList[i]||{});
+  S.loading=false;
+  render();
+}
+
+/* ---------- 工具 ---------- */
+const mv=(o,k)=> (o&&o[k]&&typeof o[k].value!=='undefined')?o[k].value:null;
+const initials=s=>(s||'?').slice(0,2).toUpperCase();
+function loadColor(p){ if(p==null)return 'var(--content-subtle)'; if(p<50)return 'var(--ok)'; if(p<85)return 'var(--warn)'; return 'var(--urgent)'; }
+function fmtRange(a,b){
+  const f=x=>{const d=new Date(x); if(isNaN(d))return x; const p=n=>String(n).padStart(2,'0');
+    return `${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;};
+  return f(a)+' → '+f(b);
+}
+function activeReservationFor(uuid){
+  const now=Date.now();
+  return S.reservations.find(r=>r.resourceId===uuid && !r.isCancelled &&
+    new Date(r.start).getTime()<=now && new Date(r.end).getTime()>=now);
+}
+
+/* ---------- 机器模型 ---------- */
+function buildMachines(){
+  const hosts = S.hostnames.length?S.hostnames:[...new Set(S.resources.map(r=>r.hostname))];
+  return hosts.map(h=>{
+    const m = S.metrics[h]||{};
+    const online = !!(m.GPU||m.CPU);
+    const gpus = Object.entries(m.GPU||{}).map(([uuid,g])=>{
+      const mt=g.metrics||{};
+      const memUsed=mv(mt,'mem_used'), memTotal=mv(mt,'mem_total');
+      const memPct = (memUsed!=null&&memTotal)? Math.round(memUsed/memTotal*100):null;
+      const resMeta = S.resources.find(r=>r.id===uuid);
+      return { uuid, name:(resMeta&&resMeta.name)|| (mt.name)||'GPU',
+        util:mv(mt,'utilization'), memUsed, memTotal, memPct,
+        temp:mv(mt,'temp'), power:mv(mt,'power'), fan:mv(mt,'fan_speed'),
+        reservation:activeReservationFor(uuid) };
+    });
+    // CPU（可能只有一个 CPU_host 条目）
+    let cpu=null; const cpuEntry=Object.values(m.CPU||{})[0];
+    if(cpuEntry){ const c=cpuEntry.metrics||{};
+      cpu={util:mv(c,'utilization'), memUsed:mv(c,'mem_used'), memTotal:mv(c,'mem_total')};
+      cpu.memPct=(cpu.memUsed!=null&&cpu.memTotal)?Math.round(cpu.memUsed/cpu.memTotal*100):null; }
+    // 谁在用（GPU 进程 owner 去重）
+    const owners=new Set();
+    Object.values(S.procs[h]||{}).forEach(list=>(list||[]).forEach(p=>p.owner&&owners.add(p.owner)));
+    const reservedUsers=[...new Set(gpus.filter(g=>g.reservation).map(g=>g.reservation.userName))];
+    const busy = online && (owners.size>0 || reservedUsers.length>0 ||
+      gpus.some(g=>g.util!=null&&g.util>10));
+    return { host:h, online, gpus, cpu, owners:[...owners], reservedUsers, busy };
+  });
+}
+
+/* ---------- 渲染：概览 ---------- */
+function renderOverview(){
+  const machines=buildMachines();
+  const total=machines.length, online=machines.filter(m=>m.online).length;
+  const gpuCount=machines.reduce((a,m)=>a+m.gpus.length,0);
+  const utils=machines.flatMap(m=>m.gpus.map(g=>g.util)).filter(v=>v!=null);
+  const avgUtil=utils.length?Math.round(utils.reduce((a,b)=>a+b,0)/utils.length):0;
+  const busy=machines.filter(m=>m.busy).length;
+
+  const stat=(k,v,s='')=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}${s?` <small>${s}</small>`:''}</div></div>`;
+  let html=`<div class="section-title"><h3>资源总览</h3>
+     <span class="live"><span class="dot"></span>实时 · ${new Date().toLocaleTimeString('zh-CN')}</span></div>
+    <div class="stats">
+      ${stat('机器总数',total,'台')}
+      ${stat('在线',online,`/ ${total}`)}
+      ${stat('GPU 数量',gpuCount,'块')}
+      ${stat('平均 GPU 占用',avgUtil,'%')}
+      ${stat('使用中',busy,'台')}
+    </div>
+    <div class="section-title"><h3>机器列表</h3></div>`;
+
+  if(S.loading){ html+=`<div class="grid">${'<div class="card" style="height:280px"><div class="skeleton" style="height:100%"></div></div>'.repeat(3)}</div>`; }
+  else if(!machines.length){ html+=`<div class="empty">还没有任何机器。请在 hosts_config.ini 中添加节点。</div>`; }
+  else html+=`<div class="grid">${machines.map(machineCard).join('')}</div>`;
+  return html;
+}
+
+function machineCard(m){
+  const pill = !m.online?`<span class="pill offline">离线</span>`
+    : m.busy?`<span class="pill busy">使用中</span>`:`<span class="pill free">空闲</span>`;
+  let body='';
+  if(!m.online){ body=`<div class="empty" style="padding:24px">无法连接或暂无数据</div>`; }
+  else {
+    body = m.gpus.map(g=>{
+      const p=g.util!=null?g.util:(g.memPct||0);
+      const rc=loadColor(g.util!=null?g.util:g.memPct);
+      const mini=[];
+      if(g.temp!=null)mini.push(`<div>温度 <b>${g.temp}°C</b></div>`);
+      if(g.power!=null)mini.push(`<div>功耗 <b>${Math.round(g.power)}W</b></div>`);
+      if(g.fan!=null)mini.push(`<div>风扇 <b>${g.fan}%</b></div>`);
+      if(g.memPct!=null)mini.push(`<div>显存 <b>${g.memPct}%</b></div>`);
+      const rsv=g.reservation?`<span class="utag rsv"><span class="av">${initials(g.reservation.userName)}</span>${g.reservation.userName} 预约中</span>`:'';
+      return `<div class="gpu">
+        <div class="ring" style="--p:${p};--rc:${rc}"><div class="bg"></div>
+          <div class="hole"><b>${g.util!=null?g.util+'%':(g.memPct||0)+'%'}</b><span>${g.util!=null?'利用率':'显存'}</span></div></div>
+        <div class="gpu-info">
+          <div class="gn">${g.name}</div>
+          <div class="mem">显存 ${g.memUsed!=null?g.memUsed:'?'} / ${g.memTotal||'?'} MiB</div>
+          <div class="mini">${mini.join('')}</div>
+          ${rsv}
+        </div></div>`;
+    }).join('');
+    if(!m.gpus.length) body+=`<div style="font-size:12.5px;color:var(--content-subtle)">此机器无 GPU（仅 CPU 资源）</div>`;
+    if(m.cpu){
+      const cu=m.cpu.util!=null?Math.round(m.cpu.util):null;
+      body+=`<div style="display:flex;flex-direction:column;gap:9px">
+        <div class="metric-row"><span class="lab">CPU</span><div class="bar"><i style="width:${cu||0}%;background:${loadColor(cu)}"></i></div><span class="pct">${cu!=null?cu+'%':'—'}</span></div>
+        <div class="metric-row"><span class="lab">内存</span><div class="bar"><i style="width:${m.cpu.memPct||0}%;background:${loadColor(m.cpu.memPct)}"></i></div><span class="pct">${m.cpu.memPct!=null?m.cpu.memPct+'%':'—'}</span></div>
+      </div>`;
+    }
+    // 谁在用
+    const tags=m.owners.map(o=>`<span class="utag"><span class="av">${initials(o)}</span>${o}</span>`).join('');
+    body+=`<div class="users-row"><span class="lab">谁在用：</span>${tags||'<span style="color:var(--content-subtle);font-size:12.5px">当前空闲</span>'}</div>`;
+  }
+  const canReserve = m.online && m.gpus.length;
+  const rh = activeReservationForHost(m.host);
+  const durBadge = rh ? `<span class="dur on">⏱ ${rh.userName} 已用 ${durText(new Date(rh.start).getTime())}${isOpenEnded(rh)?' · 时长未知':''}</span>` : '';
+  return `<div class="card">
+    <div class="card-head"><span class="status-dot ${m.online?'on':'off'}"></span>
+      <div><div class="name">${m.host}</div><div class="host">${m.online?'在线':'离线'} · ${m.gpus.length} GPU</div></div>${pill}</div>
+    <div class="card-body">${body}${durBadge?`<div>${durBadge}</div>`:''}</div>
+    <div class="card-foot">
+      <button class="btn" onclick="openDrawer('${m.host}')">详情</button>
+      <button class="btn ${canReserve?'btn-primary':'btn-ghost'}" style="color:${canReserve?'var(--accent-fg)':''}" ${canReserve?`onclick="openModal('${m.host}')"`:'disabled'}>预约 / 认领</button>
+    </div></div>`;
+}
+
+/* ---------- 渲染：预约 ---------- */
+function renderReservations(){
+  const now=Date.now();
+  const list=[...S.reservations].filter(r=>!r.isCancelled)
+    .sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const nameOf=uuid=>{const r=S.resources.find(x=>x.id===uuid);return r?`${r.hostname} · ${r.name}`:uuid;};
+  let html=`<div class="section-title"><h3>预约情况</h3>
+     <button class="btn btn-primary" style="width:auto;margin-left:auto;padding:8px 16px" onclick="openModal()">＋ 新建预约</button></div>`;
+  if(!list.length){ html+=`<div class="empty">暂无预约。点击右上角「新建预约」占用一台机器。</div>`; return html; }
+  html+='<div class="res-list">'+list.map(r=>{
+    const start=new Date(r.start).getTime(), end=new Date(r.end).getTime();
+    const open=isOpenEnded(r);
+    const state=end<now?['已结束','']:(start<=now?['进行中','active']:['即将开始','upcoming']);
+    const mine=S.user&&(r.userId===S.user.id);
+    const title=(r.title||'（无标题）').replace(/^\[长期\]\s*/,'');
+    const when = open ? `${fmtRange(r.start,r.start).split(' → ')[0]} 起 · 时长未知` : fmtRange(r.start,r.end);
+    return `<div class="res-item">
+      <div class="avatar">${initials(r.userName)}</div>
+      <div style="flex:1;min-width:0">
+        <div><span class="who">${r.userName}</span> · ${title}${open?' <span class="tag">长期</span>':''}</div>
+        <div class="when">${nameOf(r.resourceId)} &nbsp;|&nbsp; ${when}</div>
+      </div>
+      <span class="tag ${state[1]}">${state[0]}</span>
+      ${mine&&end>now?`<button class="btn btn-ghost" style="padding:6px 12px" onclick="cancelRes(${r.id})">取消</button>`:''}
+    </div>`;
+  }).join('')+'</div>';
+  return html;
+}
+
+/* ---------- 主渲染 ---------- */
+function render(){
+  const titles={overview:['机器概览','实时资源占用与使用者'],reservations:['预约管理','谁预约了哪台机器']};
+  document.getElementById('viewTitle').textContent=titles[S.view][0];
+  document.getElementById('viewSub').textContent=titles[S.view][1];
+  document.getElementById('content').innerHTML = S.view==='overview'?renderOverview():renderReservations();
+}
+function renderUser(){
+  const n=S.user? (S.user.username||S.user.email||'用户'):'—';
+  document.getElementById('userName').textContent=n;
+  document.getElementById('userAv').textContent=initials(n);
+}
+
+/* ---------- 预约弹窗 ---------- */
+function openModal(host){
+  const sel=document.getElementById('mRes');
+  const opts=S.resources.filter(r=>!host||r.hostname===host);
+  sel.innerHTML=opts.map(r=>`<option value="${r.id}">${r.hostname} · ${r.name}</option>`).join('')
+    || '<option disabled>无可预约的 GPU 资源</option>';
+  const now=new Date(); const plus=new Date(now.getTime()+2*3600*1000);
+  const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById('mStart').value=iso(now);
+  document.getElementById('mEnd').value=iso(plus);
+  document.getElementById('mTitle').value='';
+  document.getElementById('mErr').textContent='';
+  const unk=document.getElementById('mUnknown'); unk.checked=false;
+  document.getElementById('mEndWrap').style.opacity='1'; document.getElementById('mEnd').disabled=false;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+async function submitRes(){
+  const errEl=document.getElementById('mErr'); errEl.textContent='';
+  const resourceId=document.getElementById('mRes').value;
+  let title=document.getElementById('mTitle').value.trim()||'机器占用';
+  const start=document.getElementById('mStart').value;
+  const unknown=document.getElementById('mUnknown').checked;
+  if(!resourceId){errEl.textContent='请选择资源';return;}
+  if(!start){errEl.textContent='请填写开始时间';return;}
+  let end=document.getElementById('mEnd').value;
+  if(unknown){ title='[长期] '+title; end=new Date(new Date(start).getTime()+30*864e5).toISOString().slice(0,16); }
+  else if(!end||new Date(end)<=new Date(start)){errEl.textContent='结束时间必须晚于开始时间';return;}
+  const toUTC=v=>new Date(v).toISOString();
+  const body={ title, description:title, resourceId, userId:S.user&&S.user.id,
+    start:toUTC(start), end:toUTC(end) };
+  try{
+    await api('/reservations',{method:'POST',body:JSON.stringify(body)});
+    closeModal(); toast('预约成功'); await loadLive();
+    // 首次使用：自动为该机器建工作目录
+    const host=resHost(resourceId);
+    if(host) ctl(`/machines/${host}/workspace/ensure`,{method:'POST'}).catch(()=>{});
+  }catch(e){ errEl.textContent='预约失败：'+e.message; }
+}
+async function cancelRes(id){
+  if(!confirm('确认取消该预约？'))return;
+  try{ await api('/reservations/'+id,{method:'PUT',body:JSON.stringify({isCancelled:true})});
+    toast('已取消'); await loadLive(); }
+  catch(e){ toast('取消失败：'+e.message); }
+}
+
+/* ---------- 机器详情抽屉 ---------- */
+function fmtBytes(b){ if(b==null)return '—'; const u=['B','KB','MB','GB','TB'];let i=0,v=b;
+  while(v>=1024&&i<u.length-1){v/=1024;i++;} return v.toFixed(v>=100||i<2?0:1)+' '+u[i]; }
+async function openDrawer(host){
+  S.drawerHost=host;
+  document.getElementById('dwName').textContent=host;
+  document.getElementById('dwHost').textContent='加载中…';
+  document.getElementById('dwBody').innerHTML=`<div class="skeleton" style="height:120px"></div>
+    <div class="skeleton" style="height:80px"></div><div class="skeleton" style="height:120px"></div>`;
+  document.getElementById('drawerBg').classList.add('show');
+  try{
+    const [hw,svc,sshc]=await Promise.all([
+      ctl(`/machines/${host}/hwinfo`).catch(e=>({_err:e.message})),
+      ctl(`/machines/${host}/services`).catch(()=>[]),
+      ctl(`/machines/${host}/ssh`).catch(()=>null),
+    ]);
+    S.drawerData={hw,svc,sshc};
+    renderDrawer();
+  }catch(e){ if(String(e.message).includes('unauthorized'))logout(); }
+}
+function closeDrawer(){ document.getElementById('drawerBg').classList.remove('show'); S.drawerHost=null; }
+function renderDrawer(){
+  const host=S.drawerHost; if(!host)return;
+  const {hw,svc,sshc}=S.drawerData||{};
+  const claims=userClaimsHost(host);
+  const rh=activeReservationForHost(host);
+  document.getElementById('dwHost').textContent = rh
+    ? `使用中 · ${rh.userName} 已用 ${durText(new Date(rh.start).getTime())}${isOpenEnded(rh)?'（时长未知）':''}`
+    : '空闲';
+  const icon=(p)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${p}</svg>`;
+  let h='';
+  // 硬件
+  if(hw && !hw._err){
+    const spec=(k,v)=>`<div class="sk">${k}</div><div class="sv">${v}</div>`;
+    h+=`<div class="blk"><h4>${icon('<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>')}硬件规格</h4>
+      <div class="specs">
+        ${spec('CPU', (hw.cpu_model||'—')+(hw.cpu_cores?` · ${hw.cpu_cores} 核`:''))}
+        ${spec('内存', fmtBytes(hw.mem_total))}
+        ${spec('硬盘', `${fmtBytes(hw.disk_used)} / ${fmtBytes(hw.disk_total)}`)}
+        ${spec('GPU', (hw.gpus||[]).map(g=>g.name).join('、')||'无')}
+        ${spec('系统', (hw.os||'')+(hw.kernel?` (${hw.kernel})`:''))}
+      </div></div>`;
+  } else { h+=`<div class="hint">无法获取硬件信息：${hw&&hw._err||'离线'}</div>`; }
+  // SSH
+  if(sshc){ h+=`<div class="blk"><h4>${icon('<path d="M4 17l6-6-6-6M12 19h8"/>')}SSH 连接</h4>
+    <div class="sshbox"><code id="sshCmd">${sshc.command}</code><button onclick="copySSH()">复制</button></div>
+    <div class="ws" style="margin-top:8px">工作目录 <code>~/workspace/${(S.user&&S.user.username)||''}</code>
+    ${claims?`<button class="btn" style="padding:4px 10px;font-size:12px" onclick="ensureWorkspace('${host}')">初始化目录</button>`:'<span style="color:var(--content-subtle)">（预约后可初始化）</span>'}</div>
+    </div>`; }
+  // 服务
+  h+=`<div class="blk"><h4>${icon('<path d="M5 3h14a2 2 0 0 1 2 2v6H3V5a2 2 0 0 1 2-2zM3 13h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>')}运行的服务</h4>`;
+  if((svc||[]).length){ h+=svc.map(s=>`<div class="svc"><div class="si">${s.name[0]}</div>
+    <div class="meta"><div class="t">${s.name}</div><div class="p">端口 ${s.port} · PID ${s.pid} · ${s.owner}</div></div>
+    <a href="${s.url}" target="_blank" rel="noopener">打开</a>
+    ${claims?`<button onclick="stopService('${host}',${s.pid})">停止</button>`:''}</div>`).join('');
+  } else { h+=`<div class="hint">未检测到 TensorBoard / Jupyter 等服务</div>`; }
+  h+='</div>';
+  document.getElementById('dwBody').innerHTML=h;
+}
+async function copySSH(){ const t=document.getElementById('sshCmd').textContent;
+  try{ await navigator.clipboard.writeText(t); toast('已复制 SSH 命令'); }
+  catch(e){ toast('复制失败，请手动选择'); } }
+async function ensureWorkspace(host){
+  try{ const r=await ctl(`/machines/${host}/workspace/ensure`,{method:'POST'});
+    toast('工作目录已就绪：'+r.path); }
+  catch(e){ toast('初始化失败：'+e.message); } }
+async function stopService(host,pid){
+  if(!confirm('确认停止该服务进程？'))return;
+  try{ await ctl(`/machines/${host}/services/${pid}/stop`,{method:'POST'});
+    toast('已停止'); const svc=await ctl(`/machines/${host}/services`).catch(()=>[]);
+    S.drawerData.svc=svc; renderDrawer(); }
+  catch(e){ toast('停止失败：'+e.message); } }
+
+/* ---------- Toast ---------- */
+let toastT; function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ---------- 主题 ---------- */
+function applyTheme(){ const dark=localStorage.getItem('th_theme')==='dark';
+  document.documentElement.classList.toggle('dark',dark);
+  document.getElementById('themeIcon').innerHTML = dark
+    ? '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>'
+    : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+}
+
+/* ---------- 启动 ---------- */
+async function boot(){
+  showApp();
+  try{ await loadStatic(); await loadLive(); }
+  catch(e){ if(String(e.message).includes('unauthorized')){ logout(); return; } }
+  render();
+  clearInterval(S.timer);
+  S.timer=setInterval(()=>loadLive().catch(e=>{ if(String(e.message).includes('unauthorized'))logout(); }),4000);
+}
+
+/* ---------- 事件绑定 ---------- */
+document.getElementById('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const btn=document.getElementById('lBtn'), err=document.getElementById('lErr');
+  err.textContent=''; btn.textContent='登录中…'; btn.disabled=true;
+  try{ await login(document.getElementById('lUser').value.trim(), document.getElementById('lPass').value);
+    await boot(); }
+  catch(ex){ err.textContent=ex.message; }
+  finally{ btn.textContent='登录'; btn.disabled=false; }
+});
+document.getElementById('nav').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-view]'); if(!b)return;
+  S.view=b.dataset.view; [...document.querySelectorAll('#nav button')].forEach(x=>x.classList.toggle('active',x===b));
+  render();
+});
+document.getElementById('refreshBtn').onclick=()=>loadLive();
+document.getElementById('logoutBtn').onclick=logout;
+document.getElementById('themeBtn').onclick=()=>{ localStorage.setItem('th_theme',
+  localStorage.getItem('th_theme')==='dark'?'light':'dark'); applyTheme(); };
+document.getElementById('mCancel').onclick=closeModal;
+document.getElementById('mSubmit').onclick=submitRes;
+document.getElementById('modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg')closeModal(); });
+document.getElementById('dwClose').onclick=closeDrawer;
+document.getElementById('drawerBg').addEventListener('click',e=>{ if(e.target.id==='drawerBg')closeDrawer(); });
+document.getElementById('mUnknown').addEventListener('change',e=>{
+  const on=e.target.checked; const w=document.getElementById('mEndWrap');
+  w.style.opacity=on?'.4':'1'; document.getElementById('mEnd').disabled=on;
+});
+
+applyTheme();
+if(S.access){ boot(); } else { showLogin(); }
+</script>
+</body>
+</html>
