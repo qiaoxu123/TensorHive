@@ -67,7 +67,7 @@ setup(
         'six==1.16.0',
         'SQLAlchemy==1.3.0',
         'SQLAlchemy-Utils==0.33.8',
-        'ssh2-python==0.26.0',
+        'ssh2-python>=1.0.0',  # upgraded from ==0.26.0: old libssh2 only signs RSA keys with SHA-1 (ssh-rsa), rejected by OpenSSH 8.8+
         'stringcase==1.2.0',
         'swagger_ui_bundle==0.0.8',
         'urllib3==1.26.5',

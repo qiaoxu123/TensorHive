@@ -204,7 +204,8 @@ def key():
         just copy and paste it into ~/.ssh/authorized_keys on each target node.
 
     '''
-    authorized_keys_entry = 'ssh-rsa {pub_key} {username}@{hostname}'.format(
+    authorized_keys_entry = '{key_type} {pub_key} {username}@{hostname}'.format(
+        key_type=private_key.get_name(),
         pub_key=public_key,
         username=os.environ['USER'],
         hostname=platform.node()
