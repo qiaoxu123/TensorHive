@@ -11,7 +11,8 @@
 
 | 项 | 值 |
 |---|---|
-| Web 界面（大家用这个） | http://<本机局域网IP>:5000 |
+| **新版界面（推荐，中文/现代化）** | http://<本机局域网IP>:8090 |
+| 旧版原生界面（保留备用） | http://<本机局域网IP>:5000 |
 | API / Swagger | http://<本机局域网IP>:1111/api/ui/ |
 | 管理员 | 用户名 `xqiao` / 密码见本机私密记录（**勿入库**） |
 | 演示普通用户 | 用户名 `alice` / 密码见本机私密记录 |
@@ -23,17 +24,49 @@
 ```bash
 source $HOME/anaconda3/etc/profile.d/conda.sh && conda activate tensorhive
 
-# 启动（后台，日志写入 logs/run.log）
+# 1) 启动后端（API :1111 + 旧版 web :5000）
 cd ~/Workspace/tensorhive
 nohup tensorhive > ~/.config/TensorHive/logs/run.log 2>&1 &
 
-# 查看状态 / 日志
-ss -tlnp | grep -E ':5000|:1111'
-tail -f ~/.config/TensorHive/logs/run.log
+# 2) 启动新版前端（:8090，静态单文件）
+cd ~/Workspace/tensorhive/webui
+nohup python3 serve.py 8090 > ~/.config/TensorHive/logs/webui.log 2>&1 &
 
-# 停止
+# 3) 启动管理后端（:8091，AutoDL 式功能：硬件/服务/SSH/建目录/停服务）
+cd ~/Workspace/tensorhive/webui
+nohup python backend.py > ~/.config/TensorHive/logs/backend.log 2>&1 &
+
+# 查看状态 / 日志
+ss -tlnp | grep -E ':8090|:8091|:5000|:1111'
+tail -f ~/.config/TensorHive/logs/backend.log
+
+# 停止（注意：别用 pkill -f 'python backend.py'，会误杀自身 shell）
 pkill -f 'bin/tensorhive'
+pkill -f 'serve.py 8090'
+kill $(ss -tlnpH 'sport = :8091' | grep -oP 'pid=\K[0-9]+' | head -1)   # 停管理后端
 ```
+
+## 新版前端（webui/）
+
+- 纯静态单文件 `webui/index.html`（内联 CSS+JS，**无需构建**），由 `webui/serve.py` 起一个静态服务器托管。
+- 设计参考 acta（中性面 + 单一强调色，支持浅/深色），**默认中文**，**机器优先**：首页大卡片展示每台机器的 GPU 利用率环形图、显存/CPU/内存条、温度功耗、以及"谁在用"；预约是次要页签，不占满页面。
+- 通过浏览器直接调用 `http://<hostname>:1111/api`（TensorHive 已开 CORS）。access token 60s 过期 → 前端用 refresh_token 自动续期。用户 id/角色从 JWT `identity`/`user_claims` 解析（`GET /user` 不支持）。
+- 每 4 秒轮询一次实时指标。改前端只需编辑 `index.html` 刷新页面即可（服务器禁用了缓存）。
+
+## 管理后端（webui/backend.py，:8091）— AutoDL 式功能
+
+Flask 小服务（零新依赖），**复用 TensorHive 的 SSH 通道**（`tensorhive.core.ssh`，同一把 Ed25519 key 连所有节点）在机器上执行命令。前端"机器详情"抽屉调它。
+
+- **鉴权**：校验 TensorHive JWT（HS256，`jwt-some-secret`）；用户名从 sqlite users 表按 id 查。
+- **授权**：写操作要求该用户对该机器有"活跃预约"（已认领）或为 admin，否则 403；只读信息任意登录用户可看。
+- 端点：`GET /ctl/machines/<host>/hwinfo`（CPU 型号/核数、内存、硬盘、OS、GPU，缓存 60s）、`.../services`（探测 TensorBoard/Jupyter + 端口）、`.../ssh`（一键复制的 ssh 命令）、`POST .../workspace/ensure`（建 `~/workspace/<用户名>`）、`POST .../services/<pid>/stop`（停服务）。
+- 前端能力：详情抽屉展示硬件规格、SSH 一键复制、运行服务（打开/停止）、工作目录初始化、使用时长；预约支持"⏳ 时长未知（长期占用）"；认领后自动建工作目录。
+- **访问模型**：共享账号（hosts_config 的 user）+ 每人 `~/workspace/<用户名>` 目录，无需 root。
+
+### ⚠️ 安全提醒
+- JWT 密钥当前是 TensorHive 默认弱值 `jwt-some-secret`（管理后端也用它验签）。生产前建议改强并两边同步。
+- 已做防注入：host 白名单、pid 整数校验、用户名字符集校验、命令不拼接用户自由文本。
+- **未做（需后续确认）**：每人独立系统账号（需 sudo）、整机 reboot、重度环境配置（装驱动/Docker/系统包）、开机自启。
 
 > 修改 `hosts_config.ini`（新增/删除机器）后**必须重启** TensorHive 才生效——节点列表在启动时读取。
 
