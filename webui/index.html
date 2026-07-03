@@ -119,6 +119,9 @@ a{color:inherit}
 .pill.busy{background:var(--accent-soft);color:var(--accent)}
 .pill.free{background:rgba(22,163,74,.12);color:var(--ok)}
 .pill.offline{background:var(--panel);color:var(--content-subtle)}
+.spec-strip{display:flex;flex-wrap:wrap;gap:6px 14px;padding:9px 16px;border-bottom:1px solid var(--border);
+  background:var(--surface-sunken);font-size:12px;color:var(--content-muted)}
+.spec-strip span{white-space:nowrap}
 
 .card-body{padding:16px;display:flex;flex-direction:column;gap:16px}
 .gpu{display:flex;gap:14px;align-items:center}
@@ -260,6 +263,10 @@ a{color:inherit}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
           <span class="lbl">预约</span>
         </button>
+        <button data-view="users" id="navUsers" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="lbl">用户</span>
+        </button>
       </nav>
       <div class="spacer"></div>
     </aside>
@@ -389,6 +396,13 @@ function durText(fromMs){
   const d=Math.floor(s/86400); s-=d*86400; const h=Math.floor(s/3600); s-=h*3600; const m=Math.floor(s/60);
   if(d>0) return `${d}天${h}小时`; if(h>0) return `${h}小时${m}分`; return `${m}分钟`;
 }
+/* 桌面/系统进程（不算“真正在用”这台机器做计算） */
+const DESKTOP=['xorg','gnome','gdm','kde','plasma','sunlogin','todesk','xdg','nautilus','nutstore',
+  'msedge','chrome','chromium','firefox','acta','pulseaudio','pipewire','ibus','fcitx','dbus','systemd',
+  'xwayland','sddm','lightdm','tracker','evolution','gjs','gsd-','snap','packagekit','colord','rtkit','upower'];
+function isDesktopProc(p){ const c=(p.command||'').toLowerCase();
+  if(/^[\d.]+$/.test(c)) return true;            // sunloginclient 之类的版本号进程名
+  return DESKTOP.some(x=>c.includes(x)); }
 
 /* ---------- 登录 / 退出 ---------- */
 async function login(u,p){
@@ -412,6 +426,11 @@ async function loadStatic(){
     api('/nodes/hostnames').catch(()=>[]),
   ]);
   S.resources = res||[]; S.hostnames = hosts||[];
+  // 硬件信息（CPU 型号/内存/硬盘）只需拉一次，后端已缓存 60s
+  S.hw = S.hw||{};
+  const allHosts = (hosts&&hosts.length)?hosts:[...new Set((res||[]).map(r=>r.hostname))];
+  await Promise.all(allHosts.map(h=>ctl(`/machines/${h}/hwinfo`)
+    .then(d=>{ if(d&&!d._err) S.hw[h]=d; }).catch(()=>{})));
 }
 async function loadLive(){
   const hosts = S.hostnames.length?S.hostnames:[...new Set(S.resources.map(r=>r.hostname))];
@@ -462,13 +481,20 @@ function buildMachines(){
     if(cpuEntry){ const c=cpuEntry.metrics||{};
       cpu={util:mv(c,'utilization'), memUsed:mv(c,'mem_used'), memTotal:mv(c,'mem_total')};
       cpu.memPct=(cpu.memUsed!=null&&cpu.memTotal)?Math.round(cpu.memUsed/cpu.memTotal*100):null; }
-    // 谁在用（GPU 进程 owner 去重）
-    const owners=new Set();
-    Object.values(S.procs[h]||{}).forEach(list=>(list||[]).forEach(p=>p.owner&&owners.add(p.owner)));
-    const reservedUsers=[...new Set(gpus.filter(g=>g.reservation).map(g=>g.reservation.userName))];
-    const busy = online && (owners.size>0 || reservedUsers.length>0 ||
-      gpus.some(g=>g.util!=null&&g.util>10));
-    return { host:h, online, gpus, cpu, owners:[...owners], reservedUsers, busy };
+    // 谁在用：过滤掉桌面/系统进程，只保留真正的计算用户
+    const procs=[]; Object.values(S.procs[h]||{}).forEach(list=>(list||[]).forEach(p=>procs.push(p)));
+    const computeOwners=[...new Set(procs.filter(p=>p.owner && !isDesktopProc(p)).map(p=>p.owner))];
+    // 真实计算负载：GPU 利用率高，或显存占用明显高于桌面基线
+    const gpuLoad = gpus.some(g=>(g.util!=null&&g.util>15)||(g.memPct!=null&&g.memPct>35));
+    const reservation = activeReservationForHost(h);
+    let status;
+    if(!online) status='offline';
+    else if(reservation) status='reserved';
+    else if(gpuLoad||computeOwners.length) status='busy';
+    else status='idle';
+    const hw = (S.hw||{})[h]||null;
+    return { host:h, online, gpus, cpu, hw, computeOwners, reservation, gpuLoad, status,
+             occupied: status==='reserved'||status==='busy' };
   });
 }
 
@@ -479,7 +505,7 @@ function renderOverview(){
   const gpuCount=machines.reduce((a,m)=>a+m.gpus.length,0);
   const utils=machines.flatMap(m=>m.gpus.map(g=>g.util)).filter(v=>v!=null);
   const avgUtil=utils.length?Math.round(utils.reduce((a,b)=>a+b,0)/utils.length):0;
-  const busy=machines.filter(m=>m.busy).length;
+  const busy=machines.filter(m=>m.occupied).length;
 
   const stat=(k,v,s='')=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}${s?` <small>${s}</small>`:''}</div></div>`;
   let html=`<div class="section-title"><h3>资源总览</h3>
@@ -500,8 +526,16 @@ function renderOverview(){
 }
 
 function machineCard(m){
-  const pill = !m.online?`<span class="pill offline">离线</span>`
-    : m.busy?`<span class="pill busy">使用中</span>`:`<span class="pill free">空闲</span>`;
+  const PILL={offline:['离线','offline'],reserved:['已预约','busy'],busy:['使用中','busy'],idle:['空闲','free']};
+  const pi=PILL[m.status]; const pill=`<span class="pill ${pi[1]}">${pi[0]}</span>`;
+  // 硬件规格条（回答“看不到内存总量/CPU”）
+  const cpuName=m.hw&&m.hw.cpu_model ? m.hw.cpu_model.replace(/\(R\)|\(TM\)|Processor/g,'').replace(/\s+/g,' ').trim() : null;
+  const ramBytes=(m.hw&&m.hw.mem_total)||(m.cpu&&m.cpu.memTotal?m.cpu.memTotal*1048576:null);
+  const specBits=[];
+  if(cpuName) specBits.push(`<span>🧠 ${cpuName}${m.hw.cpu_cores?` · ${m.hw.cpu_cores}核`:''}</span>`);
+  if(ramBytes) specBits.push(`<span>🧮 内存 ${fmtBytes(ramBytes)}</span>`);
+  if(m.hw&&m.hw.disk_total) specBits.push(`<span>💽 硬盘 ${fmtBytes(m.hw.disk_used)}/${fmtBytes(m.hw.disk_total)}</span>`);
+  const specStrip = specBits.length?`<div class="spec-strip">${specBits.join('')}</div>`:'';
   let body='';
   if(!m.online){ body=`<div class="empty" style="padding:24px">无法连接或暂无数据</div>`; }
   else {
@@ -527,21 +561,27 @@ function machineCard(m){
     if(!m.gpus.length) body+=`<div style="font-size:12.5px;color:var(--content-subtle)">此机器无 GPU（仅 CPU 资源）</div>`;
     if(m.cpu){
       const cu=m.cpu.util!=null?Math.round(m.cpu.util):null;
+      const memGB=ramBytes?` · 共 ${fmtBytes(ramBytes)}`:'';
+      const usedGB=(m.cpu.memUsed!=null)?` (${fmtBytes(m.cpu.memUsed*1048576)})`:'';
       body+=`<div style="display:flex;flex-direction:column;gap:9px">
         <div class="metric-row"><span class="lab">CPU</span><div class="bar"><i style="width:${cu||0}%;background:${loadColor(cu)}"></i></div><span class="pct">${cu!=null?cu+'%':'—'}</span></div>
-        <div class="metric-row"><span class="lab">内存</span><div class="bar"><i style="width:${m.cpu.memPct||0}%;background:${loadColor(m.cpu.memPct)}"></i></div><span class="pct">${m.cpu.memPct!=null?m.cpu.memPct+'%':'—'}</span></div>
+        <div class="metric-row"><span class="lab">内存${memGB}</span><div class="bar"><i style="width:${m.cpu.memPct||0}%;background:${loadColor(m.cpu.memPct)}"></i></div><span class="pct">${m.cpu.memPct!=null?m.cpu.memPct+'%':'—'}${usedGB}</span></div>
       </div>`;
     }
-    // 谁在用
-    const tags=m.owners.map(o=>`<span class="utag"><span class="av">${initials(o)}</span>${o}</span>`).join('');
-    body+=`<div class="users-row"><span class="lab">谁在用：</span>${tags||'<span style="color:var(--content-subtle);font-size:12.5px">当前空闲</span>'}</div>`;
+    // 谁在用：认领者 + 真正的计算用户（已过滤桌面进程）
+    let who='';
+    if(m.reservation) who+=`<span class="utag rsv"><span class="av">${initials(m.reservation.userName)}</span>${m.reservation.userName} 认领</span>`;
+    who+=m.computeOwners.filter(o=>!m.reservation||o!==m.reservation.userName)
+      .map(o=>`<span class="utag"><span class="av">${initials(o)}</span>${o}</span>`).join('');
+    body+=`<div class="users-row"><span class="lab">谁在用：</span>${who||'<span style="color:var(--content-subtle);font-size:12.5px">当前空闲</span>'}</div>`;
   }
   const canReserve = m.online && m.gpus.length;
-  const rh = activeReservationForHost(m.host);
+  const rh = m.reservation;
   const durBadge = rh ? `<span class="dur on">⏱ ${rh.userName} 已用 ${durText(new Date(rh.start).getTime())}${isOpenEnded(rh)?' · 时长未知':''}</span>` : '';
   return `<div class="card">
     <div class="card-head"><span class="status-dot ${m.online?'on':'off'}"></span>
       <div><div class="name">${m.host}</div><div class="host">${m.online?'在线':'离线'} · ${m.gpus.length} GPU</div></div>${pill}</div>
+    ${specStrip}
     <div class="card-body">${body}${durBadge?`<div>${durBadge}</div>`:''}</div>
     <div class="card-foot">
       <button class="btn" onclick="openDrawer('${m.host}')">详情</button>
@@ -578,17 +618,51 @@ function renderReservations(){
   return html;
 }
 
+/* ---------- 渲染：用户管理（仅管理员） ---------- */
+function isAdmin(){ return S.user && (S.user.roles||[]).includes('admin'); }
+function renderUsers(){
+  if(!isAdmin()) return `<div class="empty">需要管理员权限</div>`;
+  let html=`<div class="section-title"><h3>用户与权限</h3>
+    <span class="live" style="color:var(--content-subtle)">勾选“管理员”即可授予/取消管理权限</span></div>`;
+  const rows=(S.usersList||[]).map(u=>{
+    const me=S.user&&u.id===S.user.id;
+    return `<div class="res-item">
+      <div class="avatar">${initials(u.username)}</div>
+      <div style="flex:1;min-width:0">
+        <div><span class="who">${u.username}</span>${me?' <span class="tag">你</span>':''}
+          ${u.is_admin?'<span class="tag upcoming">管理员</span>':''}</div>
+        <div class="when">${u.email||''}</div>
+      </div>
+      <label class="chkline" style="margin:0">
+        <input type="checkbox" ${u.is_admin?'checked':''} ${me?'disabled title="不能修改自己"':''}
+          onchange="toggleAdmin(${u.id},this.checked)"> 管理员
+      </label>
+    </div>`;
+  }).join('');
+  html+=`<div class="res-list">${rows||'<div class="empty">加载中…</div>'}</div>`;
+  return html;
+}
+async function loadUsers(){ try{ S.usersList=await ctl('/users'); }catch(e){ S.usersList=[]; } }
+async function toggleAdmin(uid,value){
+  try{ const r=await ctl(`/users/${uid}/admin`,{method:'POST',body:JSON.stringify({value})});
+    toast((value?'已设为管理员':'已取消管理员')+'（'+ (r.note||'') +'）'); await loadUsers(); render(); }
+  catch(e){ toast('操作失败：'+e.message); await loadUsers(); render(); }
+}
+
 /* ---------- 主渲染 ---------- */
 function render(){
-  const titles={overview:['机器概览','实时资源占用与使用者'],reservations:['预约管理','谁预约了哪台机器']};
+  const titles={overview:['机器概览','实时资源占用与使用者'],reservations:['预约管理','谁预约了哪台机器'],
+    users:['用户与权限','管理员可指定其他用户为管理员']};
   document.getElementById('viewTitle').textContent=titles[S.view][0];
   document.getElementById('viewSub').textContent=titles[S.view][1];
-  document.getElementById('content').innerHTML = S.view==='overview'?renderOverview():renderReservations();
+  const view = S.view==='overview'?renderOverview():S.view==='reservations'?renderReservations():renderUsers();
+  document.getElementById('content').innerHTML = view;
 }
 function renderUser(){
   const n=S.user? (S.user.username||S.user.email||'用户'):'—';
   document.getElementById('userName').textContent=n;
   document.getElementById('userAv').textContent=initials(n);
+  document.getElementById('navUsers').style.display = isAdmin()?'':'none';
 }
 
 /* ---------- 预约弹窗 ---------- */
@@ -744,7 +818,7 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 document.getElementById('nav').addEventListener('click',e=>{
   const b=e.target.closest('button[data-view]'); if(!b)return;
   S.view=b.dataset.view; [...document.querySelectorAll('#nav button')].forEach(x=>x.classList.toggle('active',x===b));
-  render();
+  if(S.view==='users'){ render(); loadUsers().then(render); } else render();
 });
 document.getElementById('refreshBtn').onclick=()=>loadLive();
 document.getElementById('logoutBtn').onclick=logout;

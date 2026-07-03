@@ -339,6 +339,59 @@ def service_stop(host, pid):
     return jsonify({"ok": True})
 
 
+# ---------- 用户 / 权限管理（仅管理员） ----------
+def is_admin(user):
+    return "admin" in (user.get("roles") or [])
+
+
+@app.route("/ctl/users")
+@require_auth
+def list_users():
+    if not is_admin(g.user):
+        return jsonify({"msg": "需要管理员权限"}), 403
+    con = sqlite3.connect(DB_PATH)
+    rows = con.execute("SELECT id, username, email, created_at FROM users ORDER BY id").fetchall()
+    roles = {}
+    for uid, name in con.execute("SELECT user_id, name FROM roles"):
+        roles.setdefault(uid, []).append(name)
+    con.close()
+    out = [{"id": r[0], "username": r[1], "email": r[2], "created_at": r[3],
+            "roles": roles.get(r[0], []), "is_admin": "admin" in roles.get(r[0], [])}
+           for r in rows]
+    return jsonify(out)
+
+
+@app.route("/ctl/users/<int:uid>/admin", methods=["POST"])
+@require_auth
+def set_admin(uid):
+    if not is_admin(g.user):
+        return jsonify({"msg": "需要管理员权限"}), 403
+    value = bool((request.get_json(silent=True) or {}).get("value"))
+    con = sqlite3.connect(DB_PATH)
+    if not con.execute("SELECT 1 FROM users WHERE id=?", (uid,)).fetchone():
+        con.close()
+        return jsonify({"msg": "用户不存在"}), 404
+    has = con.execute("SELECT 1 FROM roles WHERE user_id=? AND name='admin'", (uid,)).fetchone()
+    if not value:  # 取消管理员
+        if uid == g.user["id"]:
+            con.close()
+            return jsonify({"msg": "不能取消自己的管理员权限"}), 400
+        admin_cnt = con.execute("SELECT COUNT(DISTINCT user_id) FROM roles WHERE name='admin'").fetchone()[0]
+        if has and admin_cnt <= 1:
+            con.close()
+            return jsonify({"msg": "系统至少需要保留一个管理员"}), 400
+        con.execute("DELETE FROM roles WHERE user_id=? AND name='admin'", (uid,))
+    else:          # 设为管理员
+        if not has:
+            con.execute("INSERT INTO roles(name, user_id) VALUES('admin', ?)", (uid,))
+        if not con.execute("SELECT 1 FROM roles WHERE user_id=? AND name='user'", (uid,)).fetchone():
+            con.execute("INSERT INTO roles(name, user_id) VALUES('user', ?)", (uid,))
+    con.commit()
+    con.close()
+    return jsonify({"ok": True, "is_admin": value,
+                    "note": "对方将在下次登录或令牌刷新(约1分钟内)后生效"})
+
+
 if __name__ == "__main__":
     print("[机器资源池] 管理后端: http://0.0.0.0:8091  nodes=%s" % list(SSH.AVAILABLE_NODES.keys()))
     app.run(host="0.0.0.0", port=8091, threaded=True)

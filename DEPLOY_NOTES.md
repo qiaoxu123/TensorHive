@@ -60,6 +60,8 @@ Flask 小服务（零新依赖），**复用 TensorHive 的 SSH 通道**（`tens
 - **鉴权**：校验 TensorHive JWT（HS256，`jwt-some-secret`）；用户名从 sqlite users 表按 id 查。
 - **授权**：写操作要求该用户对该机器有"活跃预约"（已认领）或为 admin，否则 403；只读信息任意登录用户可看。
 - 端点：`GET /ctl/machines/<host>/hwinfo`（CPU 型号/核数、内存、硬盘、OS、GPU，缓存 60s）、`.../services`（探测 TensorBoard/Jupyter + 端口）、`.../ssh`（一键复制的 ssh 命令）、`POST .../workspace/ensure`（建 `~/workspace/<用户名>`）、`POST .../services/<pid>/stop`（停服务）。
+- **用户/权限（仅管理员）**：`GET /ctl/users`（列出用户+角色）、`POST /ctl/users/<id>/admin {value:bool}`（设/取消管理员）。守护：不能取消自己、至少保留一个管理员。前端"用户"页（仅管理员可见）用开关管理。角色改动在对方下次登录或令牌刷新（约 1 分钟）后生效。xqiao 为默认管理员。
+- **机器卡片显示修复**：状态（使用中/空闲/已预约/离线）改由真实 GPU 负载 + 预约决定，不再被 Xorg/gnome/ToDesk 等桌面进程误判为"使用中"；"谁在用"过滤桌面/系统进程只显示真实计算用户；卡片新增硬件条（CPU 型号·核数、内存总量、硬盘）。
 - 前端能力：详情抽屉展示硬件规格、SSH 一键复制、运行服务（打开/停止）、工作目录初始化、使用时长；预约支持"⏳ 时长未知（长期占用）"；认领后自动建工作目录。
 - **访问模型**：共享账号（hosts_config 的 user）+ 每人 `~/workspace/<用户名>` 目录，无需 root。
 
