@@ -733,33 +733,42 @@ function renderReservations(){
 /* ---------- 渲染：用户管理（仅管理员） ---------- */
 function isAdmin(){ return S.user && (S.user.roles||[]).includes('admin'); }
 function renderUsers(){
-  if(!isAdmin()) return `<div class="empty">需要管理员权限</div>`;
-  let html=`<div class=”section-title”><h3>用户与权限</h3>
-    <div style=”display:flex;gap:8px”>
-      <button class=”btn btn-primary” style=”width:auto;padding:6px 14px” onclick=”openCreateUser()”>＋ 新建用户</button>
-      <button class=”btn” style=”width:auto;padding:6px 14px” onclick=”exportKeys()”>📋 导出 authorized_keys</button>
-    </div></div>`;
-  const rows=(S.usersList||[]).map(u=>{
-    const me=S.user&&u.id===S.user.id;
-    const hasKey=u.ssh_pubkey&&u.ssh_pubkey.length>10;
-    return `<div class=”res-item”>
-      <div class=”avatar”>${initials(u.username)}</div>
-      <div style=”flex:1;min-width:0”>
-        <div><span class=”who”>${u.username}</span>${me?' <span class=”tag”>你</span>':''}
-          ${u.is_admin?'<span class=”tag upcoming”>管理员</span>':''}
-          ${hasKey?'<span class=”tag” style=”background:var(--accent-soft);color:var(--accent)”>🔑 已登记密钥</span>':
-            '<span class=”tag” style=”background:#fff3cd;color:#856404”>⚠ 未登记密钥</span>'}</div>
-        <div class=”when”>${u.email||''}</div>
-      </div>
-      <label class=”chkline” style=”margin:0”>
-        <input type=”checkbox” ${u.is_admin?'checked':''} ${me?'disabled title=”不能修改自己”':''}
-          onchange=”toggleAdmin(${u.id},this.checked)”> 管理员
-      </label>
-      ${!me?`<button class=”btn btn-ghost” style=”padding:4px 10px;font-size:12px” onclick=”openResetPw(${u.id},'${u.username}')”>重置密码</button>`:''}
-      ${!me?`<button class=”btn btn-ghost” style=”padding:4px 10px;font-size:12px;color:#e55” onclick=”deleteUser(${u.id},'${u.username}')”>删除</button>`:''}
-    </div>`;
-  }).join('');
-  html+=`<div class=”res-list”>${rows||'<div class=”empty”>加载中…</div>'}</div>`;
+  if(!isAdmin()) return '<div class=”empty” style=”padding:40px;text-align:center;color:var(--content-subtle)”>需要管理员权限</div>';
+  let html='<div class=”section-title”><h3>用户与权限</h3>';
+  html+='<span class=”live”>'+(S.usersList?.length||0)+' 人</span>';
+  html+='<div style=”margin-left:auto;display:flex;gap:8px”>';
+  html+='<button class=”btn” style=”width:auto;padding:6px 12px” onclick=”exportKeys()”>📋 导出密钥</button>';
+  html+='<button class=”btn btn-primary” style=”width:auto;padding:6px 12px” onclick=”openCreateUser()”>＋ 新建</button>';
+  html+='</div></div>';
+  html+='<div style=”display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px”>';
+  (S.usersList||[]).forEach(function(u){
+    var me=S.user&&u.id===S.user.id;
+    var hasKey=u.ssh_pubkey&&u.ssh_pubkey.length>10;
+    var c=personColor(u.username);
+    var eu = escH(u.username||''), ee = escH(u.email||'');
+    html+='<div style=”display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--panel);border:1px solid var(--border)'+(me?';border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 40%,transparent)':'')+'”>'+
+      '<div style=”width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;background:'+c.bg+'”>'+initials(u.username)+'</div>'+
+      '<div style=”flex:1;min-width:0”>'+
+        '<div style=”display:flex;align-items:center;gap:4px;flex-wrap:wrap”>'+
+          '<span style=”font-weight:600;font-size:13px”>'+eu+'</span>'+
+          (me?'<span style=”font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px”>你</span>':'')+
+          (u.is_admin?'<span style=”font-size:10px;background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent);padding:1px 6px;border-radius:10px;font-weight:600”>管理员</span>':'')+
+          (hasKey?'<span style=”font-size:10px;background:color-mix(in srgb,#6aa84f 20%,transparent);color:#6aa84f;padding:1px 6px;border-radius:10px”>🔑密钥</span>':'<span style=”font-size:10px;background:#fff3cd;color:#856404;padding:1px 6px;border-radius:10px”>⚠ 无密钥</span>')+
+        '</div>'+
+        '<div style=”font-size:11px;color:var(--content-subtle);margin-top:2px”>'+ee+'</div>'+
+      '</div>'+
+      '<div style=”display:flex;gap:4px;align-items:center”>'+
+        '<label style=”display:flex;align-items:center;gap:3px;font-size:11px;color:var(--content-muted);cursor:'+(me?'not-allowed':'pointer')+'”>'+
+          '<input type=”checkbox” '+(u.is_admin?'checked':'')+(me?' disabled':'')+' onchange=”toggleAdmin('+u.id+',this.checked)” style=”accent-color:var(--accent)”> 管理'+
+        '</label>'+
+        (!me?'<div style=”display:flex;gap:2px”>'+
+          '<button style=”background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:4px” onclick=”openResetPw('+u.id+',\''+eu.replace(/\'/g,”\\'”)+'\')” title=”重置密码”>🔑</button>'+
+          '<button style=”background:none;border:none;cursor:pointer;font-size:12px;color:#e55;padding:4px” onclick=”deleteUser('+u.id+',\''+eu.replace(/\'/g,”\\'”)+'\')” title=”删除”>✕</button>'+
+        '</div>':'')+
+      '</div>'+
+    '</div>';
+  });
+  html+='</div>';
   return html;
 }
 async function loadUsers(){ try{ S.usersList=await ctl('/users'); }catch(e){ S.usersList=[]; } }
