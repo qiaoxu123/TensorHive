@@ -36,8 +36,8 @@ class Reservation(CRUDModel, Base):  # type: ignore
     _end = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    __min_reservation_time = datetime.timedelta(minutes=30)
-    __max_reservation_time = datetime.timedelta(days=8)
+    __min_reservation_time = datetime.timedelta(minutes=10)
+    __max_reservation_time = datetime.timedelta(days=180)
 
     def check_assertions(self):
         assert self.user_id, 'Reservation owner must be given!'
