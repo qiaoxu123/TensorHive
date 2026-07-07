@@ -355,6 +355,45 @@ def login():
         "msg": "Logged in as %s" % username
     })
 
+# ── 在线用户检测 ──
+@app.route("/ctl/machines/<host>/users")
+@require_auth
+def machine_users(host):
+    """Detect active users on a machine by checking running processes."""
+    # Get non-system users with active Python/Cuda/Shell processes
+    cmd = (
+        "ps -eo user,pid,pcpu,pmem,comm --no-headers 2>/dev/null | "
+        "awk '{u=$1; if(u!=\"root\" && u!=\"nobody\" && u!=\"www-data\" && "
+        "u!=\"messagebus\" && u!=\"syslog\" && u!=\"_\" && u!=\"systemd\" && "
+        "u!=\"daemon\") print}' | "
+        "sort | awk '{users[$1]++} END {for(u in users) print u,users[u]}'"
+    )
+    try:
+        out = ssh_run(host, cmd)
+        lines = (out or "").strip().split('\n')
+        users = []
+        for line in lines:
+            parts = line.strip().split()
+            if len(parts) >= 1:
+                name = parts[0]
+                procs = int(parts[1]) if len(parts) > 1 else 1
+                # Filter out system accounts
+                if name and name[0] != '_' and not name.startswith('systemd'):
+                    users.append({"username": name, "processes": procs})
+        # Also check who's logged in via ssh
+        out2 = ssh_run(host, "who -u 2>/dev/null | awk '{print $1}' | sort -u || true")
+        logged_in = []
+        if out2:
+            for u in out2.strip().split('\n'):
+                u = u.strip()
+                if u and u not in [x["username"] for x in users]:
+                    logged_in.append(u)
+        for u in logged_in:
+            users.append({"username": u, "processes": 0, "logged_in": True})
+        return jsonify(users)
+    except ApiError:
+        return jsonify([])
+
 @app.route("/ctl/health")
 def health():
     return jsonify({"ok": True, "nodes": list(SSH.AVAILABLE_NODES.keys())})
@@ -410,18 +449,48 @@ def ssh_cmd(host):
 @require_auth
 def workspace_ensure(host):
     user = g.user
-    if not USERNAME_RE.match(user["username"]):
+    body = request.get_json(silent=True) or {}
+    target_user = (body.get("username") or user["username"]).strip()
+    if not USERNAME_RE.match(target_user):
         return jsonify({"msg": "非法用户名"}), 400
     if not has_claim(user, host):
         return jsonify({"msg": "请先预约(认领)该机器后再使用"}), 403
-    path = "~/workspace/%s" % user["username"]
+    path = "~/workspace/%s" % target_user
+    # Also create the actual user account if needed
+    cmd = (
+        "id {u} 2>/dev/null || sudo useradd -m -s /bin/bash {u} 2>/dev/null; "
+        "mkdir -p {p} && chown -R {u}:{u} {p} 2>/dev/null || mkdir -p {p} && chmod 700 {p}; "
+        "echo OK:$(cd {p} 2>/dev/null && pwd || echo {p})"
+    ).format(u=target_user, p=path)
     try:
-        out = ssh_run(host, "mkdir -p %s && chmod 700 %s && echo OK:$(cd %s && pwd)"
-                      % (path, path, path))
+        out = ssh_run(host, cmd)
     except ApiError as e:
         return jsonify({"msg": e.msg}), e.code
     real = out.strip().split("OK:", 1)[-1].strip() if "OK:" in out else path
-    return jsonify({"ok": True, "path": real})
+    return jsonify({"ok": True, "path": real, "user": target_user})
+
+# ── 结束当前预约 ──
+@app.route("/ctl/machines/<host>/end_reservation", methods=["POST"])
+@require_auth
+def end_reservation(host):
+    user = g.user
+    now = datetime.datetime.utcnow().isoformat() + "Z"
+    resources = th_get("/resources", user["token"])
+    res_host = {r["id"]: r["hostname"] for r in resources}
+    reservations = th_get("/reservations", user["token"])
+    from dateutil.parser import parse
+    for r in reservations:
+        if r.get("isCancelled"): continue
+        if r.get("userId") != user["id"]: continue
+        if res_host.get(r.get("resourceId")) != host: continue
+        try:
+            if parse(r["start"]) <= datetime.datetime.utcnow() <= parse(r["end"]):
+                r2 = requests.put(TH_API + "/reservations/" + str(r["id"]),
+                    headers={"Authorization": "Bearer "+user["token"], "Content-Type": "application/json"},
+                    json={"end": now}, timeout=10)
+                if r2.ok: return jsonify({"msg": "已结束使用"})
+        except: pass
+    return jsonify({"msg": "没有找到进行中的预约"}), 404
 
 
 @app.route("/ctl/machines/<host>/services/<int:pid>/stop", methods=["POST"])

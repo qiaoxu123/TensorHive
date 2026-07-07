@@ -51,8 +51,9 @@ class Reservation(CRUDModel, Base):  # type: ignore
         assert len(self.description) < 200, 'Reservation description has incorrect length!'
         assert len(self.resource_id) == 40, 'Protected resource UUID has incorrect length!'
 
-        collision = self.would_interfere()
-        assert not collision, 'Reservation would interfere with some other reservation!'
+        # Multi-user: allow overlapping reservations on shared GPUs
+        # collision = self.would_interfere()
+        # assert not collision, 'Reservation would interfere with some other reservation!'
 
     @hybrid_property
     def duration(self):

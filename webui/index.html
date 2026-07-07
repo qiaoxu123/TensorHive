@@ -405,6 +405,7 @@ a{color:inherit}
     <div class="field"><label style="font-size:12px;color:var(--content-muted)">选择 GPU 资源</label><select id="mRes"></select></div>
     <div class="field"><label style="font-size:12px;color:var(--content-muted)">用途标题</label><input id="mTitle" placeholder="例如：训练 A 模型"></div>
     <label class="chkline"><input type="checkbox" id="mUnknown"> ⏳ 使用时长未知（长期占用，之后可随时取消）</label>
+    <div class="field"><label style="font-size:12px;color:var(--content-muted)">目标机用户名（用于创建 home 目录，默认用登录名）</label><input id="mUser" placeholder="留空则使用当前用户名"></div>
     <div style="display:flex;gap:10px">
       <div class="field" style="flex:1"><label style="font-size:12px;color:var(--content-muted)">开始</label><input id="mStart" type="datetime-local"></div>
       <div class="field" style="flex:1" id="mEndWrap"><label style="font-size:12px;color:var(--content-muted)">结束</label><input id="mEnd" type="datetime-local"></div>
@@ -929,9 +930,10 @@ async function submitRes(){
   try{
     await api('/reservations',{method:'POST',body:JSON.stringify(body)});
     closeModal(); toast('预约成功'); await loadLive();
-    // 首次使用：自动为该机器建工作目录
+    // 自动建工作目录（使用自定义用户名）
     const host=resHost(resourceId);
-    if(host) ctl(`/machines/${host}/workspace/ensure`,{method:'POST'}).catch(()=>{});
+    const customUser=document.getElementById('mUser').value.trim();
+    if(host) ctl(`/machines/${host}/workspace/ensure`,{method:'POST',body:JSON.stringify({username:customUser||undefined})}).catch(()=>{});
   }catch(e){ errEl.textContent='预约失败：'+e.message; }
 }
 async function cancelRes(id){
@@ -952,12 +954,13 @@ async function openDrawer(host){
     <div class="skeleton" style="height:80px"></div><div class="skeleton" style="height:120px"></div>`;
   document.getElementById('drawerBg').classList.add('show');
   try{
-    const [hw,svc,sshc]=await Promise.all([
+    const [hw,svc,sshc,activeUsers]=await Promise.all([
       ctl(`/machines/${host}/hwinfo`).catch(e=>({_err:e.message})),
       ctl(`/machines/${host}/services`).catch(()=>[]),
       ctl(`/machines/${host}/ssh`).catch(()=>null),
+      ctl(`/machines/${host}/users`).catch(()=>[]),
     ]);
-    S.drawerData={hw,svc,sshc};
+    S.drawerData={hw,svc,sshc,activeUsers};
     renderDrawer();
   }catch(e){ if(String(e.message).includes('unauthorized'))logout(); }
 }
@@ -984,11 +987,19 @@ function renderDrawer(){
         ${spec('系统', (hw.os||'')+(hw.kernel?` (${hw.kernel})`:''))}
       </div></div>`;
   } else { h+=`<div class="hint">无法获取硬件信息：${hw&&hw._err||'离线'}</div>`; }
+  // 在线用户
+  const active=hw&&!hw._err && S.drawerData.activeUsers;
+  if(active && active.length>0){
+    h+=`<div class="blk"><h4>${icon('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>')}当前在线</h4>`;
+    h+=active.map(u=>`<span class="utag" style="margin:3px"><span class="av">${initials(u.username)}</span>${u.username}${u.processes>0?` · ${u.processes} 进程`:''}${u.logged_in?' · 已登录':''}</span>`).join('');
+    h+=`</div>`;
+  }
   // SSH
   if(sshc){ h+=`<div class="blk"><h4>${icon('<path d="M4 17l6-6-6-6M12 19h8"/>')}SSH 连接</h4>
     <div class="sshbox"><code id="sshCmd">${sshc.command}</code><button onclick="copySSH()">复制</button></div>
     <div class="ws" style="margin-top:8px">工作目录 <code>~/workspace/${(S.user&&S.user.username)||''}</code>
-    ${claims?`<button class="btn" style="padding:4px 10px;font-size:12px" onclick="ensureWorkspace('${host}')">初始化目录</button>`:'<span style="color:var(--content-subtle)">（预约后可初始化）</span>'}</div>
+    ${claims?`<button class="btn" style="padding:4px 10px;font-size:12px" onclick="ensureWorkspace('${host}')">初始化目录</button>
+      <button class="btn" style="padding:4px 10px;font-size:12px;color:#e55" onclick="endUse('${host}')">结束使用</button>`:'<span style="color:var(--content-subtle)">（预约后可初始化）</span>'}</div>
     ${isAdmin()?`<button class="btn" style="padding:4px 10px;font-size:12px;margin-top:8px" onclick="installKeys('${host}')">🔑 安装所有用户 SSH 公钥</button>`:''}
     </div>`; }
   // 服务
@@ -1005,9 +1016,15 @@ async function copySSH(){ const t=document.getElementById('sshCmd').textContent;
   try{ await navigator.clipboard.writeText(t); toast('已复制 SSH 命令'); }
   catch(e){ toast('复制失败，请手动选择'); } }
 async function ensureWorkspace(host){
-  try{ const r=await ctl(`/machines/${host}/workspace/ensure`,{method:'POST'});
+  const targetUser = prompt('请输入目标机上的用户名（用于创建 home 目录）:', S.user?.username||'');
+  if(!targetUser) return;
+  try{ const r=await ctl(`/machines/${host}/workspace/ensure`,{method:'POST',body:JSON.stringify({username:targetUser})});
     toast('工作目录已就绪：'+r.path); }
   catch(e){ toast('初始化失败：'+e.message); } }
+async function endUse(host){
+  if(!confirm('确认结束当前使用？这将把预约结束时间设为现在。')) return;
+  try{ const r=await ctl(`/machines/${host}/end_reservation`,{method:'POST'}); toast(r.msg); await loadLive(); }
+  catch(e){ toast('操作失败：'+e.message); } }
 async function installKeys(host){
   try{ const r=await ctl(`/machines/${host}/install_keys`,{method:'POST'});
     toast(r.added?`已安装 ${r.added} 个用户的 SSH 密钥到 ${host}`:'没有需要安装的密钥'); }
