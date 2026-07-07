@@ -60,7 +60,31 @@ a{color:inherit}
 .btn-primary:hover{filter:brightness(.95);border-color:transparent}
 .btn-ghost{background:transparent}
 .err{color:var(--urgent);font-size:12.5px;min-height:18px;margin-top:8px}
-/* ── 论文卡片 ── */
+/* ── 用户管理卡片 ── */
+.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-top:4px}
+.user-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;
+  display:flex;align-items:center;gap:12px;transition:all .15s}
+.user-card:hover{border-color:var(--content-subtle);box-shadow:var(--shadow)}
+.user-card.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
+.user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.user-body{flex:1;min-width:0}
+.user-name{font-weight:600;font-size:14px;margin-bottom:2px}
+.user-tag{display:inline-block;font-size:9px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px;font-weight:500}
+.user-email{font-size:11px;color:var(--content-subtle);margin-bottom:6px}
+.user-meta{display:flex;gap:6px;flex-wrap:wrap}
+.user-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.user-badge.admin{background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent)}
+.user-badge.user{background:var(--panel);color:var(--content-muted)}
+.user-badge.key-ok{background:color-mix(in srgb,#6aa84f 20%,transparent);color:#6aa84f}
+.user-badge.key-no{background:#fff3cd;color:#856404}
+.kno{font-size:10px}
+.user-actions{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.user-actions .chk{display:flex;align-items:center;gap:3px;font-size:11px;color:var(--content-muted);user-select:none}
+.user-actions .chk input{accent-color:var(--accent);cursor:inherit}
+.user-actions button{background:none;border:none;cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px;color:var(--content-subtle)}
+.user-actions button:hover{background:var(--panel);color:var(--content)}
+.user-actions .pw-del-btn:hover{background:color-mix(in srgb,var(--urgent) 15%,transparent);color:var(--urgent)}
 
 /* ===== 应用骨架 ===== */
 #app{display:none;height:100%}
@@ -680,35 +704,33 @@ function renderUsers(){
   h+='<button class=”btn” style=”width:auto;padding:6px 12px” onclick=”exportKeys()”>📋 导出密钥</button>';
   h+='<button class=”btn btn-primary” style=”width:auto;padding:6px 12px” onclick=”openCreateUser()”>＋ 新建</button>';
   h+='</div></div>';
-  h+='<table style=”width:100%;border-collapse:collapse;font-size:13px”>';
-  h+='<thead><tr style=”border-bottom:1px solid var(--border);color:var(--content-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px”>'+
-    '<th style=”padding:8px 10px;text-align:left”>用户</th>'+
-    '<th style=”padding:8px 10px;text-align:left”>邮箱</th>'+
-    '<th style=”padding:8px 10px;text-align:center”>状态</th>'+
-    '<th style=”padding:8px 10px;text-align:center”>管理</th>'+
-    '<th style=”padding:8px 10px;text-align:right”>操作</th>'+
-  '</tr></thead><tbody>';
+  h+='<div class=”user-grid”>';
   list.forEach(function(u){
     var me=S.user&&u.id===S.user.id;
     var hasKey=u.ssh_pubkey&&u.ssh_pubkey.length>10;
     var eu=escH(u.username||''), ee=escH(u.email||'');
-    h+='<tr style=”border-bottom:1px solid var(--border);background:'+(me?'color-mix(in srgb,var(--accent-soft) 30%,transparent)':'')+'”>'+
-      '<td style=”padding:10px;font-weight:600”>'+eu+(me?' <span style=”font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px”>你</span>':'')+'</td>'+
-      '<td style=”padding:10px;color:var(--content-muted)”>'+ee+'</td>'+
-      '<td style=”padding:10px;text-align:center”>'+
-        (u.is_admin?'<span style=”font-size:10px;background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent);padding:2px 8px;border-radius:10px;font-weight:600”>管理员</span>':'<span style=”font-size:10px;color:var(--content-subtle)”>用户</span>')+
-        ' '+(hasKey?'<span style=”font-size:10px;background:color-mix(in srgb,#6aa84f 20%,transparent);color:#6aa84f;padding:2px 8px;border-radius:10px”>🔑</span>':'<span style=”font-size:10px;color:var(--content-subtle)”>—</span>')+
-      '</td>'+
-      '<td style=”padding:10px;text-align:center”><label style=”cursor:'+(me?'not-allowed':'pointer')+'”>'+
-        '<input type=”checkbox” '+(u.is_admin?'checked':'')+(me?' disabled':'')+' onchange=”toggleAdmin('+u.id+',this.checked)” style=”accent-color:var(--accent)”>'+
-      '</label></td>'+
-      '<td style=”padding:10px;text-align:right”>'+
-        (!me?'<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-reset-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:4px” title=”重置密码”>🔑</button>'+
-          '<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-del-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:#e55;padding:4px” title=”删除”>✕</button>':'<span style=”color:var(--content-subtle)”>—</span>')+
-      '</td>'+
-    '</tr>';
+    h+='<div class=”user-card'+(me?' me':'')+'”>';
+    h+='  <div class=”user-avatar” style=”background:hsl('+(Math.abs((u.username||'').split('').reduce(function(a,c){return a*31+c.charCodeAt(0)},0))%360)+',55%,50%)”>'+initials(u.username)+'</div>';
+    h+='  <div class=”user-body”>';
+    h+='    <div class=”user-name”>'+eu+(me?' <span class=”user-tag”>你</span>':'')+'</div>';
+    h+='    <div class=”user-email”>'+ee+'</div>';
+    h+='    <div class=”user-meta”>';
+    h+='      <span class=”user-badge'+(u.is_admin?' admin':' user')+'”>'+(u.is_admin?'管理员':'用户')+'</span>';
+    h+='      <span class=”user-badge'+(hasKey?' key-ok':' key-no')+'”>'+(hasKey?'🔑 已登记':'<span class=”kno”>⛔ 未登记</span>')+'</span>';
+    h+='    </div>';
+    h+='  </div>';
+    h+='  <div class=”user-actions”>';
+    h+='    <label class=”chk” style=”cursor:'+(me?'not-allowed':'pointer')+'”>';
+    h+='      <input type=”checkbox” '+(u.is_admin?'checked':'')+(me?' disabled':'')+' onchange=”toggleAdmin('+u.id+',this.checked)”> 管理员';
+    h+='    </label>';
+    if(!me){
+      h+='    <button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-reset-btn” title=”重置密码”>🔑</button>';
+      h+='    <button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-del-btn” title=”删除”>✕</button>';
+    }
+    h+='  </div>';
+    h+='</div>';
   });
-  h+='</tbody></table>';
+  h+='</div>';
   return h;
 }
 async function loadUsers(){ try{ S.usersList=await ctl('/users'); }catch(e){ S.usersList=[]; } }
