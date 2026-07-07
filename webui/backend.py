@@ -829,7 +829,8 @@ def get_groups():
     return jsonify(result)
 
 # ── 论文追踪（从 acta PG 库读取） ──
-ACTA_DB = dict(host='127.0.0.1', port=5432, user='user_Q8mjjw', password='password_kfwteh')
+ACTA_DB_HOST = os.environ.get('TH_DB_HOST', 'postgresql')  # Docker DNS for PG in 1panel-network
+ACTA_DB = dict(host=ACTA_DB_HOST, port=5432, user='user_Q8mjjw', password='password_kfwteh')
 
 def _acta_conn():
     return psycopg2.connect(host=ACTA_DB['host'], port=ACTA_DB['port'],
@@ -893,11 +894,25 @@ def list_papers():
         papers = []
         for r in cur.fetchall():
             authors_raw = (r[4] or '').strip()
-            # Parse authors, map to usernames where possible
-            authors = [a.strip() for a in authors_raw.replace(',;', ',').split(',') if a.strip()]
+            # Parse authors (handles both "Chinese, English" and "Chinese, 中文" formats)
+            authors = []
+            for part in authors_raw.replace(',;', ',').replace('; ', ',').split(','):
+                part = part.strip()
+                if not part: continue
+                # Check if it's Western "Last, First" format
+                if ' ' in part and not any('一' <= c <= '鿿' for c in part):
+                    authors.append(part)
+                else:
+                    authors.append(part)
             author_names = []
             for a in authors:
                 mapped = _AUTHOR_MAP.get(a, None)
+                # Try fuzzy match for Western format "Zemin Sun" → sunzemin
+                if not mapped:
+                    for cn_name, uname in _AUTHOR_MAP.items():
+                        if cn_name and cn_name.lower() in a.lower().replace(',', '').strip():
+                            mapped = uname
+                            break
                 author_names.append({"name": a, "username": mapped})
             # Get latest submission
             cur2 = conn.cursor()
