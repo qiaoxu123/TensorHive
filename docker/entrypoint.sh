@@ -72,6 +72,25 @@ fi
 
 echo "[✔] Config files written"
 
+# ── 1b. Add /etc/hosts entries for machines that share an IP with different ports ──
+# This allows parallel-ssh to use display names as connection targets.
+# Each entry in hosts_config.ini can optionally define a static IP via 'host' field,
+# but parallel-ssh doesn't read that field — so we add the mapping to /etc/hosts.
+if [ -f "$CONFIG_DIR/hosts_config.ini" ]; then
+    python3 -c "
+import configparser, os
+c = configparser.ConfigParser()
+c.read('$CONFIG_DIR/hosts_config.ini')
+with open('/etc/hosts', 'a') as f:
+    for section in c.sections():
+        if section == 'proxy_tunneling': continue
+        if c.has_option(section, 'host'):
+            ip = c.get(section, 'host')
+            f.write(f'{ip} {section}\n')
+            print(f'  {ip} -> {section}')
+" 2>/dev/null
+fi
+
 # ── 2. Generate SSH key if missing (persisted on host, survives rebuild) ──
 if [ ! -f "$CONFIG_DIR/ssh_key" ]; then
     ssh-keygen -t ed25519 -f "$CONFIG_DIR/ssh_key" -N "" -C "tensorhive@docker" 2>/dev/null

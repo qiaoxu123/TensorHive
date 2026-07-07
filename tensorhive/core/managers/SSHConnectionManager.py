@@ -19,20 +19,12 @@ class SSHConnectionManager():
 
     @classmethod
     def new_parallel_ssh_client(cls, config, key_path=None) -> ParallelSSHClient:
-        # Use actual IPs for display-name-only entries
-        hostnames = []
-        real_config = {}
-        for display_name, cfg in config.items():
-            real_host = cfg.get('host', display_name)
-            hostnames.append(real_host)
-            entry = dict(cfg)
-            entry.pop('host', None)  # parallel-ssh doesn't need this
-            real_config[real_host] = entry
+        hostnames = config.keys()
         try:
             if SSH.PROXY:
                 client = ParallelSSHClient(
                     hosts=hostnames,
-                    host_config=real_config,
+                    host_config=config,
                     pkey=key_path,
                     proxy_host=SSH.PROXY['proxy_host'],
                     proxy_user=SSH.PROXY['proxy_user'],
@@ -41,7 +33,7 @@ class SSHConnectionManager():
             else:
                 client = ParallelSSHClient(
                     hosts=hostnames,
-                    host_config=real_config,
+                    host_config=config,
                     timeout=SSH.TIMEOUT,
                     pkey=key_path,
                     num_retries=SSH.NUM_RETRIES
