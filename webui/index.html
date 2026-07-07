@@ -998,7 +998,7 @@ function renderDrawer(){
   if(sshc){ h+=`<div class="blk"><h4>${icon('<path d="M4 17l6-6-6-6M12 19h8"/>')}SSH 连接</h4>
     <div class="sshbox"><code id="sshCmd">${sshc.command}</code><button onclick="copySSH()">复制</button></div>
     <div class="ws" style="margin-top:8px">工作目录 <code>~/workspace/${(S.user&&S.user.username)||''}</code>
-    ${claims?`<button class="btn" style="padding:4px 10px;font-size:12px" onclick="ensureWorkspace('${host}')">初始化目录</button>
+    ${rh?`<button class="btn" style="padding:4px 10px;font-size:12px" onclick="ensureWorkspace('${host}')">初始化目录</button>
       <button class="btn" style="padding:4px 10px;font-size:12px;color:#e55" onclick="endUse('${host}')">结束使用</button>`:'<span style="color:var(--content-subtle)">（预约后可初始化）</span>'}</div>
     ${isAdmin()?`<button class="btn" style="padding:4px 10px;font-size:12px;margin-top:8px" onclick="installKeys('${host}')">🔑 安装所有用户 SSH 公钥</button>`:''}
     </div>`; }
