@@ -111,12 +111,34 @@ def ssh_run(host, command):
     """在指定节点执行命令，返回 stdout 字符串。host 必须是已配置节点。"""
     if host not in SSH.AVAILABLE_NODES:
         raise ApiError(404, "未知的机器: %s" % host)
-    user = SSH.AVAILABLE_NODES[host]["user"]
+    node = SSH.AVAILABLE_NODES[host]
+    user = node["user"]
+    port = node.get("port", 22)
+    real_host = node.get("host", host)  # Actual IP to connect to
+    key = str(SSH.KEY_FILE).replace("~", os.path.expanduser("~"))
+    # Try parallel-ssh first, fall back to OpenSSH CLI
     try:
         cfg, pcfg = ssh.build_dedicated_config_for(host, user)
         client = ssh.get_client(cfg, pcfg)
         out = ssh.run_command(client, command)
         return ssh.get_stdout(host, out) or ""
+    except ApiError:
+        raise
+    except Exception:
+        pass  # Fall through to CLI
+    # Fallback: use ssh command-line (handles non-standard SSH servers)
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["ssh", "-i", key, "-o", "StrictHostKeyChecking=no",
+             "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=15",
+             "-p", str(port), f"{user}@{real_host}", command],
+            capture_output=True, text=True, timeout=20)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        raise ApiError(502, "SSH 执行失败: %s" % result.stderr.strip()[:200])
+    except subprocess.TimeoutExpired:
+        raise ApiError(502, "SSH 连接超时")
     except ApiError:
         raise
     except Exception as e:

@@ -127,20 +127,23 @@ class SSH:
             if section == 'proxy_tunneling':
                 continue
 
-            hostname = section
+            display_name = section
+            # Optional: actual IP/hostname (defaults to section name)
+            connect_host = hosts_config.get(display_name, 'host', fallback=None) or display_name
             entry = {
-                'user': hosts_config.get(hostname, 'user'),
-                'port': hosts_config.getint(hostname, 'port', fallback=22)
+                'user': hosts_config.get(display_name, 'user'),
+                'port': hosts_config.getint(display_name, 'port', fallback=22),
+                'host': connect_host  # real IP for SSH connection
             }
             # Optional: password-based auth
-            password = hosts_config.get(hostname, 'password', fallback=None)
+            password = hosts_config.get(display_name, 'password', fallback=None)
             if password:
                 entry['password'] = password
             # Optional: per-host SSH key (overrides global key)
-            key_file = hosts_config.get(hostname, 'key_file', fallback=None)
+            key_file = hosts_config.get(display_name, 'key_file', fallback=None)
             if key_file:
                 entry['key_file'] = key_file
-            result[hostname] = entry
+            result[display_name] = entry
         return result
 
     def proxy_config_to_dict(path: str) -> Optional[Dict]:  # type: ignore

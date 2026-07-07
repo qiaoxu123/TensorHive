@@ -39,10 +39,12 @@ def build_dedicated_config_for(host: Hostname, user: Username) -> Tuple[HostsCon
     assert host and user, 'Arguments must not be None!'
     assert host in SSH.AVAILABLE_NODES
     node = SSH.AVAILABLE_NODES[host]
+    real_host = node.get('host', host)  # Use actual IP if specified
     hosts_config = {
         host: {
             'user': user,
             'port': node['port'],
+            'host': real_host,
         }
     }
     # Auth: prefer per-host key, then per-host password, then global key
