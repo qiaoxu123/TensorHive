@@ -108,11 +108,11 @@ def _sync_discourse_users(pg_host, pg_port, pg_user, pg_password):
         if not username or not email:
             continue
         try:
+            # Generate independent random password (not tied to Discourse)
+            import secrets, string
+            random_pw = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
             u = User(username=username, email=email)
-            if pw_hash:
-                u._hashed_password = pw_hash
-            else:
-                u.password = os.environ.get('TH_ADMIN_PASSWORD', 'ChangeMe123!')
+            u.password = random_pw  # Use passlib hash, NOT Discourse hash
             u.roles.append(Role(name='user'))
             if username == 'xqiao':
                 from tensorhive.database import db_session
