@@ -362,34 +362,26 @@ def machine_users(host):
     """Detect active users on a machine by checking running processes."""
     # Get non-system users with active Python/Cuda/Shell processes
     cmd = (
-        "ps -eo user:20,pid,pcpu,pmem,comm --no-headers 2>/dev/null | "
+        "ps -eo user:20 --no-headers 2>/dev/null | "
         "awk '!/^(root|nobody|www-data|messagebus|syslog|_|systemd|daemon|"
         "cups|rtkit|gnome|message|lp|nvidia|kernoops|avahi|xrdp|polkitd|colord|"
-        "dhcpcd|dnsmasq|gdm|sd|ntp|uuidd|usbmux|whoopsie|tss|fwupd|speech)"
-        "/ && !/^[0-9]+$/ {users[$1]++} END {for(u in users) print u,users[u]}'"
+        "dhcpcd|dnsmasq|gdm|sd|ntp|uuidd|usbmux|whoopsie|tss|fwupd|speech|ollama|sddm|geoclue)"
+        "/ && !/^[0-9]+$/ {print $1}' | sort -u"
     )
     try:
         out = ssh_run(host, cmd)
-        lines = (out or "").strip().split('\n')
         users = []
-        for line in lines:
-            parts = line.strip().split()
-            if len(parts) >= 1:
-                name = parts[0]
-                procs = int(parts[1]) if len(parts) > 1 else 1
-                # Filter out system accounts
-                if name and name[0] != '_' and not name.startswith('systemd'):
-                    users.append({"username": name, "processes": procs})
-        # Also check who's logged in via ssh
+        if out:
+            for u in out.strip().split('\n'):
+                u = u.strip()
+                if u and u[0] != '_' and not u.startswith('systemd'):
+                    users.append({"username": u})
         out2 = ssh_run(host, "who -u 2>/dev/null | awk '{print $1}' | sort -u || true")
-        logged_in = []
         if out2:
             for u in out2.strip().split('\n'):
                 u = u.strip()
                 if u and u not in [x["username"] for x in users]:
-                    logged_in.append(u)
-        for u in logged_in:
-            users.append({"username": u, "processes": 0, "logged_in": True})
+                    users.append({"username": u})
         return jsonify(users)
     except ApiError:
         return jsonify([])
@@ -475,14 +467,11 @@ def workspace_ensure(host):
 def end_reservation(host):
     user = g.user
     now = datetime.datetime.utcnow().isoformat() + "Z"
-    resources = th_get("/resources", user["token"])
-    res_host = {r["id"]: r["hostname"] for r in resources}
     reservations = th_get("/reservations", user["token"])
     from dateutil.parser import parse
     for r in reservations:
         if r.get("isCancelled"): continue
         if r.get("userId") != user["id"]: continue
-        if res_host.get(r.get("resourceId")) != host: continue
         try:
             if parse(r["start"]) <= datetime.datetime.utcnow() <= parse(r["end"]):
                 r2 = requests.put(TH_API + "/reservations/" + str(r["id"]),

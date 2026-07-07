@@ -991,7 +991,7 @@ function renderDrawer(){
   const active=hw&&!hw._err && S.drawerData.activeUsers;
   if(active && active.length>0){
     h+=`<div class="blk"><h4>${icon('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>')}当前在线</h4>`;
-    h+=active.map(u=>`<span class="utag" style="margin:3px"><span class="av">${initials(u.username)}</span>${u.username}${u.processes>0?` · ${u.processes} 进程`:''}${u.logged_in?' · 已登录':''}</span>`).join('');
+    h+=active.map(u=>`<span class="utag" style="margin:3px"><span class="av">${initials(u.username)}</span>${u.username}</span>`).join('');
     h+=`</div>`;
   }
   // SSH
