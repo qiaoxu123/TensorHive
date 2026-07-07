@@ -60,37 +60,7 @@ a{color:inherit}
 .btn-primary:hover{filter:brightness(.95);border-color:transparent}
 .btn-ghost{background:transparent}
 .err{color:var(--urgent);font-size:12.5px;min-height:18px;margin-top:8px}
-/* ── 进度视图 ── */
-.progress-layout{display:flex;gap:0;flex:1;overflow:hidden;height:100%}
-.progress-sidebar{width:210px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;border-right:1px solid var(--border);padding:12px 0;background:var(--bg)}
-.progress-sidebar .section-title{padding:0 14px 8px}
-.pg-grp{padding:0 0 6px}
-.pg-grp-name{font-size:10px;font-weight:700;color:var(--content-muted);padding:12px 14px 3px;text-transform:uppercase;letter-spacing:.8px;opacity:.6}
-.pg-item{padding:5px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--content);border-right:2px solid transparent;transition:all .1s}
-.pg-item:hover{background:var(--panel)}
-.pg-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-right-color:var(--accent)}
-.pg-item-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .2s}
-.pg-item-dot.has{background:var(--green);box-shadow:0 0 0 2px var(--bg),0 0 0 4px color-mix(in srgb,var(--green) 25%,transparent)}
-.pg-item-dot.all{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-right:2px}
-.progress-main{flex:1;overflow-y:auto;padding:16px 20px}
-.progress-main .section-title{margin-bottom:10px}
-.pg-feed{display:flex;flex-direction:column;gap:6px}
-.pg-day{margin-bottom:8px}
-.pg-day-label{font-size:11px;font-weight:700;color:var(--content-subtle);padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;gap:8px}
-.pg-day-count{font-weight:400;font-size:10px;color:var(--content-subtle);background:var(--panel);padding:1px 7px;border-radius:10px}
-.pg-card{display:flex;gap:10px;padding:8px 10px;border-radius:8px;transition:all .1s;position:relative}
-.pg-card:hover{background:var(--panel)}
-.pg-card.mine{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
-.pg-card-line{width:2px;border-radius:2px;flex-shrink:0;margin-top:2px;min-height:20px}
-.pg-card-body{flex:1;min-width:0;font-size:13px;line-height:1.6;color:var(--content)}
-.pg-card-head{display:flex;align-items:center;gap:8px;margin-bottom:2px}
-.pg-card-avatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
-.pg-card-name{font-weight:600;font-size:12px}
-.pg-card-actions{display:none;gap:4px;margin-left:auto}
-.pg-card:hover .pg-card-actions{display:flex}
-.pg-card-actions button{background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:2px 5px;border-radius:4px}
-.pg-card-actions button:hover{background:var(--border);color:var(--content)}
-.pg-empty{color:var(--content-subtle);font-size:13px;padding:30px 0;text-align:center}
+/* ── 论文卡片 ── */
 
 /* ===== 应用骨架 ===== */
 #app{display:none;height:100%}
@@ -227,7 +197,6 @@ a{color:inherit}
 /* ===== 详情抽屉 ===== */
 .drawer-bg{position:fixed;inset:0;background:rgba(16,20,28,.42);display:none;z-index:60;backdrop-filter:blur(2px)}
 .drawer-bg.show{display:block}
-.paper-card:hover{background:var(--accent-soft)!important;cursor:pointer}
 .drawer{position:absolute;top:0;right:0;height:100%;width:440px;max-width:94vw;background:var(--surface);
   border-left:1px solid var(--border);box-shadow:-8px 0 30px rgba(16,20,28,.14);
   transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:auto}
@@ -291,14 +260,6 @@ a{color:inherit}
         <button data-view="overview" class="active">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           <span class="lbl">概览</span>
-        </button>
-        <button data-view="progress">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span class="lbl">进度</span>
-        </button>
-        <button data-view="papers">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <span class="lbl">论文</span>
         </button>
         <button data-view="reservations">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
@@ -389,17 +350,6 @@ a{color:inherit}
 </div>
 
 <!-- 进度录入弹窗 -->
-<div class="modal-bg" id="progModalBg">
-  <div class="modal">
-    <h3>记录本周进展</h3>
-    <div class="field"><label style="font-size:12px;color:var(--content-muted)">日期（MM-DD）</label><input id="progDate" placeholder="07-07"></div>
-    <div class="field"><label style="font-size:12px;color:var(--content-muted)">进展内容</label><textarea id="progContent" rows="4" style="font-family:inherit;resize:vertical" placeholder="这周做了什么..."></textarea></div>
-    <div class="err" id="progErr"></div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" id="progCancel">取消</button>
-      <button class="btn btn-primary" id="progSubmit">记录</button>
-    </div>
-  </div>
 </div>
 
 <!-- 机器详情抽屉 -->
@@ -721,43 +671,44 @@ function renderReservations(){
 /* ---------- 渲染：用户管理（仅管理员） ---------- */
 function isAdmin(){ return S.user && (S.user.roles||[]).includes('admin'); }
 function renderUsers(){
-  if(!isAdmin()) return '<div class=”empty” style=”padding:40px;text-align:center;color:var(--content-subtle)”>需要管理员权限</div>';
-  let html='<div class=”section-title”><h3>用户与权限</h3>';
-  html+='<span class=”live”>'+(S.usersList?.length||0)+' 人</span>';
-  html+='<div style=”margin-left:auto;display:flex;gap:8px”>';
-  html+='<button class=”btn” style=”width:auto;padding:6px 12px” onclick=”exportKeys()”>📋 导出密钥</button>';
-  html+='<button class=”btn btn-primary” style=”width:auto;padding:6px 12px” onclick=”openCreateUser()”>＋ 新建</button>';
-  html+='</div></div>';
-  html+='<div style=”display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px”>';
-  (S.usersList||[]).forEach(function(u){
+  if(!isAdmin()) return '';
+  var list=(S.usersList||[]);
+  var h='<div class=”section-title”><h3>用户与权限</h3>';
+  h+='<span class=”live”>'+list.length+' 人</span>';
+  h+='<div style=”margin-left:auto;display:flex;gap:8px”>';
+  h+='<button class=”btn” style=”width:auto;padding:6px 12px” onclick=”exportKeys()”>📋 导出密钥</button>';
+  h+='<button class=”btn btn-primary” style=”width:auto;padding:6px 12px” onclick=”openCreateUser()”>＋ 新建</button>';
+  h+='</div></div>';
+  h+='<table style=”width:100%;border-collapse:collapse;font-size:13px”>';
+  h+='<thead><tr style=”border-bottom:1px solid var(--border);color:var(--content-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px”>'+
+    '<th style=”padding:8px 10px;text-align:left”>用户</th>'+
+    '<th style=”padding:8px 10px;text-align:left”>邮箱</th>'+
+    '<th style=”padding:8px 10px;text-align:center”>状态</th>'+
+    '<th style=”padding:8px 10px;text-align:center”>管理</th>'+
+    '<th style=”padding:8px 10px;text-align:right”>操作</th>'+
+  '</tr></thead><tbody>';
+  list.forEach(function(u){
     var me=S.user&&u.id===S.user.id;
     var hasKey=u.ssh_pubkey&&u.ssh_pubkey.length>10;
-    var c=personColor(u.username);
-    var eu = escH(u.username||''), ee = escH(u.email||'');
-    html+='<div style=”display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--panel);border:1px solid var(--border)'+(me?';border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 40%,transparent)':'')+'”>'+
-      '<div style=”width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;background:'+c.bg+'”>'+initials(u.username)+'</div>'+
-      '<div style=”flex:1;min-width:0”>'+
-        '<div style=”display:flex;align-items:center;gap:4px;flex-wrap:wrap”>'+
-          '<span style=”font-weight:600;font-size:13px”>'+eu+'</span>'+
-          (me?'<span style=”font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px”>你</span>':'')+
-          (u.is_admin?'<span style=”font-size:10px;background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent);padding:1px 6px;border-radius:10px;font-weight:600”>管理员</span>':'')+
-          (hasKey?'<span style=”font-size:10px;background:color-mix(in srgb,#6aa84f 20%,transparent);color:#6aa84f;padding:1px 6px;border-radius:10px”>🔑密钥</span>':'<span style=”font-size:10px;background:#fff3cd;color:#856404;padding:1px 6px;border-radius:10px”>⚠ 无密钥</span>')+
-        '</div>'+
-        '<div style=”font-size:11px;color:var(--content-subtle);margin-top:2px”>'+ee+'</div>'+
-      '</div>'+
-      '<div style=”display:flex;gap:4px;align-items:center”>'+
-        '<label style=”display:flex;align-items:center;gap:3px;font-size:11px;color:var(--content-muted);cursor:'+(me?'not-allowed':'pointer')+'”>'+
-          '<input type=”checkbox” '+(u.is_admin?'checked':'')+(me?' disabled':'')+' onchange=”toggleAdmin('+u.id+',this.checked)” style=”accent-color:var(--accent)”> 管理'+
-        '</label>'+
-        (!me?'<div style=”display:flex;gap:2px”>'+
-          '<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-reset-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:4px” title=”重置密码”>🔑</button>'+
-          '<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-del-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:#e55;padding:4px” title=”删除”>✕</button>'+
-        '</div>':'')+
-      '</div>'+
-    '</div>';
+    var eu=escH(u.username||''), ee=escH(u.email||'');
+    h+='<tr style=”border-bottom:1px solid var(--border);background:'+(me?'color-mix(in srgb,var(--accent-soft) 30%,transparent)':'')+'”>'+
+      '<td style=”padding:10px;font-weight:600”>'+eu+(me?' <span style=”font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:10px”>你</span>':'')+'</td>'+
+      '<td style=”padding:10px;color:var(--content-muted)”>'+ee+'</td>'+
+      '<td style=”padding:10px;text-align:center”>'+
+        (u.is_admin?'<span style=”font-size:10px;background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent);padding:2px 8px;border-radius:10px;font-weight:600”>管理员</span>':'<span style=”font-size:10px;color:var(--content-subtle)”>用户</span>')+
+        ' '+(hasKey?'<span style=”font-size:10px;background:color-mix(in srgb,#6aa84f 20%,transparent);color:#6aa84f;padding:2px 8px;border-radius:10px”>🔑</span>':'<span style=”font-size:10px;color:var(--content-subtle)”>—</span>')+
+      '</td>'+
+      '<td style=”padding:10px;text-align:center”><label style=”cursor:'+(me?'not-allowed':'pointer')+'”>'+
+        '<input type=”checkbox” '+(u.is_admin?'checked':'')+(me?' disabled':'')+' onchange=”toggleAdmin('+u.id+',this.checked)” style=”accent-color:var(--accent)”>'+
+      '</label></td>'+
+      '<td style=”padding:10px;text-align:right”>'+
+        (!me?'<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-reset-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:4px” title=”重置密码”>🔑</button>'+
+          '<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-del-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:#e55;padding:4px” title=”删除”>✕</button>':'<span style=”color:var(--content-subtle)”>—</span>')+
+      '</td>'+
+    '</tr>';
   });
-  html+='</div>';
-  return html;
+  h+='</tbody></table>';
+  return h;
 }
 async function loadUsers(){ try{ S.usersList=await ctl('/users'); }catch(e){ S.usersList=[]; } }
 async function toggleAdmin(uid,value){
@@ -840,131 +791,12 @@ async function deleteUser(uid,name){
   catch(e){ toast('删除失败：'+e.message); }
 }
 
-/* ── 科研进度（缓存 + 并行加载） ── */
-let _pf='', _pd=null, _cachedPd={};
-function personColor(n){ let h=0; for(let i=0;i<n.length;i++)h=(h<<5)-h+n.charCodeAt(i); const hue=Math.abs(h)%360; return {bg:'hsl('+hue+',55%,50%)',line:'hsl('+hue+',60%,40%)'}; }
-async function loadProgress(filter, force){
-  _pf=filter||'';
-  if(!force && _cachedPd[_pf]){ _pd=_cachedPd[_pf]; return; }
-  const u=_pf?'/progress?user='+encodeURIComponent(_pf):'/progress';
-  try{ _pd=await ctl(u); _cachedPd[_pf]=_pd; }catch(e){ _pd=[]; }
-}
-// Prefetch progress data in background (at boot)
-function prefetchProgress(){
-  setTimeout(function(){
-    if(!S.access) return;
-    ctl('/progress').then(function(d){ S._allPd=d||[]; }).catch(function(){});
-    ctl('/groups').then(function(r){ S.groups=Object.entries(r||{}).map(function(e){return {advisor:e[0],members:e[1]}; }); }).catch(function(){});
-  }, 3000);
-}
-function renderProgress(){
-  if(!_pd){ return '<div class="progress-layout"><div class="progress-main"><div class="empty" style="padding:40px 0;text-align:center;color:var(--content-subtle)">加载中…</div></div></div>'; }
-  const days={}; _pd.forEach(e=>{ if(!days[e.date])days[e.date]=[]; days[e.date].push(e); });
-  const dates=Object.keys(days).sort((a,b)=>{
-    const [ma,da]=a.split('.').map(Number), [mb,db]=b.split('.').map(Number);
-    return mb-ma||db-da;
-  });
-  // Sidebar
-  let s='<div class="progress-sidebar"><div class="section-title"><h4>成员</h4></div>';
-  s+=`<div class="pg-item ${!_pf?'active':''}" onclick="switchPF('')"><span class="pg-item-dot all"></span>全部</div>`;
-  (S.groups||[]).forEach(g=>{
-    s+=`<div class="pg-grp-name">${g.advisor}</div><div class="pg-grp">`;
-    (g.members||[]).forEach(m=>{
-      const ac=_pf===m.name?'active':''; const dot=m.has_progress?'<span class="pg-item-dot has"></span>':'<span class="pg-item-dot"></span>';
-      s+=`<div class="pg-item ${ac}" onclick="switchPF('${m.name}')">${dot}${m.name}</div>`;
-    });
-    s+=`</div>`;
-  });
-  s+='</div>';
-  // Main feed
-  let h='<div class="progress-main"><div class="section-title"><h3>科研进度</h3>';
-  if(_pf) h+=`<span class="live" style="font-weight:500">${_pf} 的进展</span>`;
-  h+=`<button class="btn btn-primary" style="width:auto;padding:6px 14px;margin-left:auto" onclick="openPF()">＋ 记录进展</button></div>`;
-  if(!dates.length){ h+=`<div class="pg-empty">暂无进度记录${_pf?' — '+_pf+' 还没有记录':''}</div>`; }
-  h+='<div class="pg-feed">';
-  dates.forEach(d=>{
-    h+=`<div class="pg-day"><div class="pg-day-label">${d} <span class="pg-day-count">${days[d].length}</span></div>`;
-    days[d].forEach(e=>{
-      const c=personColor(e.username); const me=e.username===S.user?.username;
-      h+=`<div class="pg-card ${me?'mine':''}">
-        <div class="pg-card-line" style="background:${c.line}"></div>
-        <div class="pg-card-body">
-          <div class="pg-card-head">
-            <div class="pg-card-avatar" style="background:${c.bg}">${e.username[0]}</div>
-            <span class="pg-card-name" style="color:${c.bg}">${e.username}</span>
-            ${me||isAdmin()?`<span class="pg-card-actions"><button onclick="editP(${e.id},'${escH(e.content).replace(/'/g,"\\'")}','${e.date}')">✎</button><button onclick="deleteP(${e.id})">✕</button></span>`:''}
-          </div>
-          <div class="pg-card-text">${escH(e.content)}</div>
-        </div>
-      </div>`;
-    });
-    h+='</div>';
-  });
-  h+='</div></div>';
-  return `<div class="progress-layout">${s}${h}</div>`;
-}
-async function switchPF(name){ await loadProgress(name); render(); }
-async function loadGroups(){ try{ const r=await ctl('/groups'); S.groups=Object.entries(r||{}).map(([a,m])=>({advisor:a,members:m})); }catch(e){ S.groups=[]; } }
-function escH(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-function openPF(){ document.getElementById('progModalBg').style.display='grid'; document.getElementById('progContent').focus(); const n=new Date(); document.getElementById('progDate').value=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
-function closePF(){ document.getElementById('progModalBg').style.display='none'; document.getElementById('progErr').textContent=''; }
-async function submitP(){
-  const d=document.getElementById('progDate').value.trim(); const c=document.getElementById('progContent').value.trim(); const e=document.getElementById('progErr');
-  if(!c){ e.textContent='请填写进展内容'; return; }
-  try{ await ctl('/progress',{method:'POST',body:JSON.stringify({content:c,date:d})}); toast('已记录'); closePF(); document.getElementById('progContent').value='';
-    _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ e.textContent=ex.message||'记录失败'; }
-}
-async function editP(id,c,d){ const nw=prompt('编辑进展内容',c); if(!nw)return; try{ await ctl('/progress/'+id,{method:'PUT',body:JSON.stringify({content:nw,date:d})}); toast('已更新'); _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ toast('编辑失败：'+ex.message); } }
-async function deleteP(id){ if(!confirm('确认删除？'))return; try{ await ctl('/progress/'+id,{method:'DELETE'}); toast('已删除'); _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ toast('删除失败：'+ex.message); } }
-
-/* ── 论文追踪 ── */
-let _paperData = null;
-async function loadPapers(filter){
-  const url = filter ? '/papers?user='+encodeURIComponent(filter) : '/papers';
-  try{ _paperData = await ctl(url); }catch(e){ _paperData = []; }
-}
-function renderPapers(){
-  if(!_paperData) return '<div class="progress-layout"><div class="progress-main"><div class="empty" style="padding:40px;text-align:center;color:var(--content-subtle)">加载中…</div></div></div>';
-  if(!_paperData.length) return '<div class="progress-layout"><div class="progress-main"><div class="empty" style="padding:40px;text-align:center;color:var(--content-subtle)">暂无论文记录</div></div></div>';
-  // Group by status
-  const statusOrder = ['writing','submitted','under_review','major_revision','minor_revision','accepted','rejected','published'];
-  const groups = {}; _paperData.forEach(p=>{ const s=p.status||'unknown'; if(!groups[s])groups[s]=[]; groups[s].push(p); });
-  let html='<div class="section-title"><h3>论文追踪</h3><span class="live" style="font-weight:500">共 '+_paperData.length+' 篇</span></div>';
-  html+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">';
-  statusOrder.forEach(s=>{
-    if(!groups[s])return;
-    html+=`<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:color-mix(in srgb,${_paperData.find(p=>p.status===s).status_color} 20%,transparent);color:${_paperData.find(p=>p.status===s).status_color};font-weight:600">${_paperData.find(p=>p.status===s).status_label} ${groups[s].length}</span>`;
-  });
-  html+='</div>';
-  statusOrder.forEach(s=>{
-    if(!groups[s])return;
-    const c = _paperData.find(p=>p.status===s).status_color;
-    html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:${c};margin-bottom:6px">${_paperData.find(p=>p.status===s).status_label}</div>`;
-    groups[s].forEach(p=>{
-      html+=`<div class="paper-card" style="padding:10px 12px;margin-bottom:6px;border-radius:8px;background:var(--panel);transition:all .1s"
-        onmouseover="this.style.background='var(--accent-soft)'" onmouseout="this.style.background='var(--panel)'">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${escH(p.title)}</div>
-        <div style="font-size:11px;color:var(--content-muted);display:flex;gap:12px;flex-wrap:wrap">
-          <span>🏛 ${p.venue||'未知'}</span>
-          <span>👥 ${p.authors.map(a=>a.name).join('、')||'匿名'}</span>
-          <span style="color:${c};font-weight:600">${p.status_label}</span>
-        </div>
-      </div>`;
-    });
-    html+='</div>';
-  });
-  return html;
-}
-
-/* ---------- 主渲染 ---------- */
 function render(){
   const titles={overview:['机器概览','实时资源占用与使用者'],reservations:['预约管理','谁预约了哪台机器'],
-    users:['用户与权限','管理员可指定其他用户为管理员'],
-    progress:['科研进度','JLU-MCNS-MEC 组会周报'],
-    papers:['论文追踪','投稿 · 审稿 · 发表']};
+    users:['用户与权限','管理员可指定其他用户为管理员']};
   document.getElementById('viewTitle').textContent=titles[S.view][0];
   document.getElementById('viewSub').textContent=titles[S.view][1];
-  const view = S.view==='overview'?renderOverview():S.view==='reservations'?renderReservations():S.view==='users'?renderUsers():S.view==='papers'?renderPapers():renderProgress();
+  const view = S.view==='overview'?renderOverview():S.view==='reservations'?renderReservations():renderUsers();
   document.getElementById('content').innerHTML = view;
 }
 function renderUser(){
@@ -1142,7 +974,6 @@ async function boot(){
   render();
   clearInterval(S.timer);
   S.timer=setInterval(()=>loadLive().catch(e=>{ if(String(e.message).includes('unauthorized'))logout(); }),4000);
-  prefetchProgress();
 }
 
 /* ---------- 事件绑定 ---------- */
@@ -1157,16 +988,7 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 document.getElementById('nav').addEventListener('click',e=>{
   const b=e.target.closest('button[data-view]'); if(!b)return;
   S.view=b.dataset.view; [...document.querySelectorAll('#nav button')].forEach(x=>x.classList.toggle('active',x===b));
-  if(S.view==='users'){ render(); loadUsers().then(render); }
-  else if(S.view==='progress'){
-    const filter = isAdmin() ? '' : (S.user?.username||'');
-    const p = (S.groups ? Promise.resolve() : loadGroups()).then(()=>loadProgress(filter));
-    render(); p.then(render);
-  }
-  else if(S.view==='papers'){
-    const filter = isAdmin() ? '' : (S.user?.username||'');
-    render(); loadPapers(filter).then(render);
-  }
+  if(S.view==='users'){ if(!isAdmin()){ S.view='overview'; render(); } else { render(); loadUsers().then(render); } }
   else render();
 });
 document.getElementById('refreshBtn').onclick=()=>loadLive();
@@ -1196,8 +1018,6 @@ document.getElementById('rpCancel').onclick=closeResetPw;
 document.getElementById('rpSubmit').onclick=submitResetPw;
 document.getElementById('resetPwModalBg').addEventListener('click',e=>{ if(e.target.id==='resetPwModalBg')closeResetPw(); });
 // 进度录入
-document.getElementById('progCancel').onclick=closePF;
-document.getElementById('progSubmit').onclick=submitP;
 // 用户管理按钮（事件委托）
 document.addEventListener('click',function(e){
   var btn=e.target.closest('button');
@@ -1205,10 +1025,6 @@ document.addEventListener('click',function(e){
   if(btn.classList.contains('pw-reset-btn')){
     openResetPw(parseInt(btn.dataset.uid),btn.dataset.uname);
   }else if(btn.classList.contains('pw-del-btn')){
-    deleteUser(parseInt(btn.dataset.uid),btn.dataset.uname);
-  }
-});
-document.getElementById('progModalBg').addEventListener('click',e=>{ if(e.target.id==='progModalBg')closePF(); });
 
 applyTheme();
 if(S.access){ boot(); } else { showLogin(); }
