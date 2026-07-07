@@ -517,15 +517,15 @@ function showApp(){ document.getElementById('login').style.display='none'; docum
 /* ---------- 数据加载 ---------- */
 async function loadStatic(){
   setUser();
-  const [res, hosts] = await Promise.all([
+  const [res, health] = await Promise.all([
     api('/resources').catch(()=>[]),
-    api('/nodes/hostnames').catch(()=>[]),
+    ctl('/health').catch(()=>({nodes:[]})),
   ]);
-  S.resources = res||[]; S.hostnames = hosts||[];
+  S.resources = res||[];
+  S.hostnames = (health&&health.nodes&&health.nodes.length)?health.nodes:[...new Set((res||[]).map(r=>r.hostname))];
   // 硬件信息（CPU 型号/内存/硬盘）只需拉一次，后端已缓存 60s
   S.hw = S.hw||{};
-  const allHosts = (hosts&&hosts.length)?hosts:[...new Set((res||[]).map(r=>r.hostname))];
-  await Promise.all(allHosts.map(h=>ctl(`/machines/${h}/hwinfo`)
+  await Promise.all(S.hostnames.map(h=>ctl(`/machines/${h}/hwinfo`)
     .then(d=>{ if(d&&!d._err) S.hw[h]=d; }).catch(()=>{})));
 }
 async function loadLive(){
