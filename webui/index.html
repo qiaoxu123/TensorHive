@@ -762,8 +762,8 @@ function renderUsers(){
           '<input type=”checkbox” '+(u.is_admin?'checked':'')+(me?' disabled':'')+' onchange=”toggleAdmin('+u.id+',this.checked)” style=”accent-color:var(--accent)”> 管理'+
         '</label>'+
         (!me?'<div style=”display:flex;gap:2px”>'+
-          '<button style=”background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:4px” onclick=”openResetPw('+u.id+',\''+eu.replace(/\'/g,”\\'”)+'\')” title=”重置密码”>🔑</button>'+
-          '<button style=”background:none;border:none;cursor:pointer;font-size:12px;color:#e55;padding:4px” onclick=”deleteUser('+u.id+',\''+eu.replace(/\'/g,”\\'”)+'\')” title=”删除”>✕</button>'+
+          '<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-reset-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:4px” title=”重置密码”>🔑</button>'+
+          '<button data-uid=”'+u.id+'” data-uname=”'+eu+'” class=”pw-del-btn” style=”background:none;border:none;cursor:pointer;font-size:12px;color:#e55;padding:4px” title=”删除”>✕</button>'+
         '</div>':'')+
       '</div>'+
     '</div>';
@@ -1149,7 +1149,7 @@ function applyTheme(){ const dark=localStorage.getItem('th_theme')==='dark';
 async function boot(){
   showApp();
   try{ await loadStatic(); await loadLive(); }
-  catch(e){ if(String(e.message).includes('unauthorized')){ logout(); return; } }
+  catch(e){ if(String(e.message).includes('unauthorized')){ logout(); document.getElementById('lErr').textContent='登录已过期，请重新登录'; return; } }
   render();
   clearInterval(S.timer);
   S.timer=setInterval(()=>loadLive().catch(e=>{ if(String(e.message).includes('unauthorized'))logout(); }),4000);
@@ -1209,6 +1209,16 @@ document.getElementById('resetPwModalBg').addEventListener('click',e=>{ if(e.tar
 // 进度录入
 document.getElementById('progCancel').onclick=closePF;
 document.getElementById('progSubmit').onclick=submitP;
+// 用户管理按钮（事件委托）
+document.addEventListener('click',function(e){
+  var btn=e.target.closest('button');
+  if(!btn)return;
+  if(btn.classList.contains('pw-reset-btn')){
+    openResetPw(parseInt(btn.dataset.uid),btn.dataset.uname);
+  }else if(btn.classList.contains('pw-del-btn')){
+    deleteUser(parseInt(btn.dataset.uid),btn.dataset.uname);
+  }
+});
 document.getElementById('progModalBg').addEventListener('click',e=>{ if(e.target.id==='progModalBg')closePF(); });
 
 applyTheme();
