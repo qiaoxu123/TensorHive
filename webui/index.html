@@ -454,34 +454,23 @@ function setUser(){ const p=parseJwt(S.access);
   S.user={ id:p.identity, roles:(p.user_claims&&p.user_claims.roles)||[], username:store.u||'用户' };
   renderUser(); }
 
-/* ---------- 请求封装（含 401 自动刷新） ---------- */
-async function api(path, opts={}, isRetry=false){
+/* ---------- 请求封装（不含自动刷新，避免 422 格式冲突） ---------- */
+async function api(path, opts={}){
   const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
   if(S.access) headers['Authorization'] = 'Bearer '+S.access;
   const res = await fetch(API+path, Object.assign({}, opts, {headers}));
-  if(res.status===401 && !isRetry){
-    if(await doRefresh()) return api(path, opts, true);
-    throw new Error('unauthorized');
-  }
+  if(res.status===401){ logout(); throw new Error('unauthorized'); }
   if(!res.ok){ let m=res.status; try{m=(await res.json()).msg||m}catch(e){} throw new Error(m); }
   const txt = await res.text(); return txt?JSON.parse(txt):null;
-}
-async function doRefresh(){
-  if(!S.refresh) return false;
-  try{
-    const res = await fetch(API+'/user/refresh',{method:'GET',headers:{'Authorization':'Bearer '+S.refresh}});
-    if(!res.ok) return false;
-    const d = await res.json(); S.access = d.access_token; store.a = S.access; return true;
-  }catch(e){ return false; }
 }
 
 /* ---------- 管理后端 (:8091) 请求封装 ---------- */
 const CTL = '/ctl';
-async function ctl(path, opts={}, isRetry=false){
+async function ctl(path, opts={}){
   const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
   if(S.access) headers['Authorization']='Bearer '+S.access;
   const res = await fetch(CTL+path, Object.assign({}, opts, {headers}));
-  if(res.status===401 && !isRetry){ if(await doRefresh()) return ctl(path,opts,true); throw new Error('unauthorized'); }
+  if(res.status===401){ logout(); throw new Error('unauthorized'); }
   if(!res.ok){ let m=res.status; try{m=(await res.json()).msg||m}catch(e){} throw new Error(m); }
   const t=await res.text(); return t?JSON.parse(t):null;
 }
@@ -544,13 +533,12 @@ async function loadStatic(){
 }
 async function loadLive(){
   const hosts = S.hostnames.length?S.hostnames:[...new Set(S.resources.map(r=>r.hostname))];
-  const [metrics, reservations, ...procList] = await Promise.all([
+  const [metrics, reservations] = await Promise.all([
     api('/nodes/metrics').catch(()=>({})),
     api('/reservations').catch(()=>[]),
-    ...hosts.map(h=>api(`/nodes/${h}/gpu/processes`).catch(()=>({})))
   ]);
   S.metrics = metrics||{}; S.reservations = reservations||[];
-  S.procs = {}; hosts.forEach((h,i)=>S.procs[h]=procList[i]||{});
+  S.procs = {};
   S.loading=false;
   render();
 }
@@ -863,10 +851,11 @@ async function loadProgress(filter, force){
 }
 // Prefetch progress data in background (at boot)
 function prefetchProgress(){
-  setTimeout(()=>{
-    ctl('/progress').then(d=>{ S._allPd=d||[]; }).catch(()=>{});
-    ctl('/groups').then(r=>{ S.groups=Object.entries(r||{}).map(([a,m])=>({advisor:a,members:m})); }).catch(()=>{});
-  }, 2000);
+  setTimeout(function(){
+    if(!S.access) return;
+    ctl('/progress').then(function(d){ S._allPd=d||[]; }).catch(function(){});
+    ctl('/groups').then(function(r){ S.groups=Object.entries(r||{}).map(function(e){return {advisor:e[0],members:e[1]}; }); }).catch(function(){});
+  }, 3000);
 }
 function renderProgress(){
   if(!_pd){ return '<div class="progress-layout"><div class="progress-main"><div class="empty" style="padding:40px 0;text-align:center;color:var(--content-subtle)">加载中…</div></div></div>'; }

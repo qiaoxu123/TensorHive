@@ -378,7 +378,7 @@ def login():
     now = datetime.datetime.utcnow()
     access_payload = {
         "iat": now, "nbf": now, "jti": os.urandom(16).hex(),
-        "exp": now + datetime.timedelta(minutes=30),
+        "exp": now + datetime.timedelta(days=1),
         "identity": uid, "fresh": True, "type": "access",
         "user_claims": {"roles": roles}
     }
