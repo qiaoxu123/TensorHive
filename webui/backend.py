@@ -828,6 +828,142 @@ def get_groups():
         result[advisor] = member_data
     return jsonify(result)
 
+# ── 论文追踪（从 acta PG 库读取） ──
+ACTA_DB = dict(host='127.0.0.1', port=5432, user='user_Q8mjjw', password='password_kfwteh')
+
+def _acta_conn():
+    return psycopg2.connect(host=ACTA_DB['host'], port=ACTA_DB['port'],
+                             user=ACTA_DB['user'], password=ACTA_DB['password'],
+                             dbname='acta')
+
+# Match Acta author names to TensorHive usernames
+_AUTHOR_MAP = {
+    '乔旭': 'xqiao', '孙泽敏': 'sunzemin', '孙庚': 'sunzemin',
+    '王爱民': 'wenjh25', '何龙': 'wenjh25', '秦玮鸿': 'qfy',
+    '张程翔': 'zcx', '何博轩': 'hbx', '靳康杰': 'jinkj',
+    '郭锦鹏': 'guojinpeng', '赵俊安': 'junan-zhao', '杨湘': 'yangxiang',
+    '温家昊': 'wenjh25', '邱丰艺': 'qfy', '高宇阳': 'GYY',
+    '肖宇杰': 'XiaoYujie', '秦振华': 'qin', '区锦锋': 'oujinfeng',
+    '邢亚欣': 'Firework', '祁嘉': 'qijia', '王颖': 'wangy',
+    '何宇轩': 'heyuxuan', '王逸娴': 'yixian_w', '陈思艺': 'chensiyi',
+    '于立强': 'yuliqiang',
+}
+
+def _get_paper_status_label(status):
+    labels = {
+        'writing': '写作中', 'submitted': '已投稿', 'under_review': '审稿中',
+        'major_revision': '大修', 'minor_revision': '小修',
+        'accepted': '已接收', 'rejected': '被拒', 'withdrawn': '已撤回',
+        'camera_ready': '终稿中', 'published': '已发表',
+    }
+    return labels.get(status or '', status or '未知')
+
+def _get_paper_status_color(status):
+    colors = {
+        'writing': 'var(--accent)', 'submitted': '#4a86e8', 'under_review': '#e69138',
+        'major_revision': '#e55', 'minor_revision': '#f6b26b',
+        'accepted': '#6aa84f', 'rejected': '#999', 'withdrawn': '#999',
+        'camera_ready': '#6aa84f', 'published': '#6aa84f',
+    }
+    return colors.get(status or '', '#999')
+
+@app.route("/ctl/papers")
+@require_auth
+def list_papers():
+    """Get all papers with author matching and submission status. ?user=name"""
+    username = request.args.get("user", "")
+    try:
+        conn = _acta_conn()
+        cur = conn.cursor()
+        if username:
+            # Find papers where this user is an author
+            cur.execute("""
+                SELECT id, title, target_venue, status, authors, my_role,
+                       started_date, abstract, notes, created_at
+                FROM papers WHERE deleted_at IS NULL AND authors LIKE %s
+                ORDER BY created_at DESC LIMIT 50
+            """, (f'%{username}%',))
+        else:
+            cur.execute("""
+                SELECT id, title, target_venue, status, authors, my_role,
+                       started_date, abstract, notes, created_at
+                FROM papers WHERE deleted_at IS NULL
+                ORDER BY created_at DESC LIMIT 100
+            """)
+        papers = []
+        for r in cur.fetchall():
+            authors_raw = (r[4] or '').strip()
+            # Parse authors, map to usernames where possible
+            authors = [a.strip() for a in authors_raw.replace(',;', ',').split(',') if a.strip()]
+            author_names = []
+            for a in authors:
+                mapped = _AUTHOR_MAP.get(a, None)
+                author_names.append({"name": a, "username": mapped})
+            # Get latest submission
+            cur2 = conn.cursor()
+            cur2.execute("""
+                SELECT venue_name, round, decision, submitted_date, decision_date
+                FROM paper_submissions WHERE paper_id=%s AND deleted_at IS NULL
+                ORDER BY round DESC LIMIT 1
+            """, (r[0],))
+            submission = cur2.fetchone()
+            cur2.close()
+            status = r[3] or ''
+            papers.append({
+                "id": r[0], "title": r[1] or '未命名', "venue": r[2] or '',
+                "status": status, "status_label": _get_paper_status_label(status),
+                "status_color": _get_paper_status_color(status),
+                "authors": author_names, "my_role": r[5], "started": r[6] or '',
+                "abstract": r[7] or '', "notes": r[8] or '',
+                "submission": {
+                    "venue_name": submission[0] if submission else '',
+                    "round": submission[1] if submission else 0,
+                    "decision": submission[2] if submission else '',
+                    "submitted_date": submission[3] if submission else '',
+                    "decision_date": submission[4] if submission else '',
+                } if submission else None
+            })
+        conn.close()
+        return jsonify(papers)
+    except Exception as e:
+        return jsonify({"msg": str(e)}), 500
+
+@app.route("/ctl/papers/<pid>")
+@require_auth
+def paper_detail(pid):
+    try:
+        conn = _acta_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, title, target_venue, status, authors, my_role,
+                   started_date, abstract, notes, created_at
+            FROM papers WHERE id=%s AND deleted_at IS NULL
+        """, (pid,))
+        r = cur.fetchone()
+        if not r:
+            return jsonify({"msg": "论文不存在"}), 404
+        # Get all submissions
+        cur.execute("""
+            SELECT id, venue_name, round, decision, submitted_date, decision_date, reviewer_summary
+            FROM paper_submissions WHERE paper_id=%s AND deleted_at IS NULL
+            ORDER BY round ASC
+        """, (pid,))
+        submissions = [{
+            "id": s[0], "venue": s[1], "round": s[2], "decision": s[3],
+            "submitted": s[4], "decided_at": s[5],
+        } for s in cur.fetchall()]
+        conn.close()
+        return jsonify({
+            "id": r[0], "title": r[1], "venue": r[2], "status": r[3],
+            "status_label": _get_paper_status_label(r[3]),
+            "status_color": _get_paper_status_color(r[3]),
+            "authors": r[4] or '', "my_role": r[5],
+            "started": r[6], "abstract": r[7] or '', "notes": r[8] or '',
+            "submissions": submissions,
+        })
+    except Exception as e:
+        return jsonify({"msg": str(e)}), 500
+
 
 if __name__ == "__main__":
     print("[机器资源池] 管理后端: http://0.0.0.0:8091  nodes=%s" % list(SSH.AVAILABLE_NODES.keys()))

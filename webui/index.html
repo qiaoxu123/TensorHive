@@ -227,6 +227,7 @@ a{color:inherit}
 /* ===== 详情抽屉 ===== */
 .drawer-bg{position:fixed;inset:0;background:rgba(16,20,28,.42);display:none;z-index:60;backdrop-filter:blur(2px)}
 .drawer-bg.show{display:block}
+.paper-card:hover{background:var(--accent-soft)!important;cursor:pointer}
 .drawer{position:absolute;top:0;right:0;height:100%;width:440px;max-width:94vw;background:var(--surface);
   border-left:1px solid var(--border);box-shadow:-8px 0 30px rgba(16,20,28,.14);
   transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:auto}
@@ -294,6 +295,10 @@ a{color:inherit}
         <button data-view="progress">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span class="lbl">进度</span>
+        </button>
+        <button data-view="papers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span class="lbl">论文</span>
         </button>
         <button data-view="reservations">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
@@ -914,13 +919,54 @@ async function submitP(){
 async function editP(id,c,d){ const nw=prompt('编辑进展内容',c); if(!nw)return; try{ await ctl('/progress/'+id,{method:'PUT',body:JSON.stringify({content:nw,date:d})}); toast('已更新'); _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ toast('编辑失败：'+ex.message); } }
 async function deleteP(id){ if(!confirm('确认删除？'))return; try{ await ctl('/progress/'+id,{method:'DELETE'}); toast('已删除'); _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ toast('删除失败：'+ex.message); } }
 
+/* ── 论文追踪 ── */
+let _paperData = null;
+async function loadPapers(filter){
+  const url = filter ? '/papers?user='+encodeURIComponent(filter) : '/papers';
+  try{ _paperData = await ctl(url); }catch(e){ _paperData = []; }
+}
+function renderPapers(){
+  if(!_paperData) return '<div class="progress-layout"><div class="progress-main"><div class="empty" style="padding:40px;text-align:center;color:var(--content-subtle)">加载中…</div></div></div>';
+  if(!_paperData.length) return '<div class="progress-layout"><div class="progress-main"><div class="empty" style="padding:40px;text-align:center;color:var(--content-subtle)">暂无论文记录</div></div></div>';
+  // Group by status
+  const statusOrder = ['writing','submitted','under_review','major_revision','minor_revision','accepted','rejected','published'];
+  const groups = {}; _paperData.forEach(p=>{ const s=p.status||'unknown'; if(!groups[s])groups[s]=[]; groups[s].push(p); });
+  let html='<div class="section-title"><h3>论文追踪</h3><span class="live" style="font-weight:500">共 '+_paperData.length+' 篇</span></div>';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">';
+  statusOrder.forEach(s=>{
+    if(!groups[s])return;
+    html+=`<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:color-mix(in srgb,${_paperData.find(p=>p.status===s).status_color} 20%,transparent);color:${_paperData.find(p=>p.status===s).status_color};font-weight:600">${_paperData.find(p=>p.status===s).status_label} ${groups[s].length}</span>`;
+  });
+  html+='</div>';
+  statusOrder.forEach(s=>{
+    if(!groups[s])return;
+    const c = _paperData.find(p=>p.status===s).status_color;
+    html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:${c};margin-bottom:6px">${_paperData.find(p=>p.status===s).status_label}</div>`;
+    groups[s].forEach(p=>{
+      html+=`<div class="paper-card" style="padding:10px 12px;margin-bottom:6px;border-radius:8px;background:var(--panel);transition:all .1s"
+        onmouseover="this.style.background='var(--accent-soft)'" onmouseout="this.style.background='var(--panel)'">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${escH(p.title)}</div>
+        <div style="font-size:11px;color:var(--content-muted);display:flex;gap:12px;flex-wrap:wrap">
+          <span>🏛 ${p.venue||'未知'}</span>
+          <span>👥 ${p.authors.map(a=>a.name).join('、')||'匿名'}</span>
+          <span style="color:${c};font-weight:600">${p.status_label}</span>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  return html;
+}
+
 /* ---------- 主渲染 ---------- */
 function render(){
   const titles={overview:['机器概览','实时资源占用与使用者'],reservations:['预约管理','谁预约了哪台机器'],
-    users:['用户与权限','管理员可指定其他用户为管理员'],progress:['科研进度','JLU-MCNS-MEC 组会周报']};
+    users:['用户与权限','管理员可指定其他用户为管理员'],
+    progress:['科研进度','JLU-MCNS-MEC 组会周报'],
+    papers:['论文追踪','投稿 · 审稿 · 发表']};
   document.getElementById('viewTitle').textContent=titles[S.view][0];
   document.getElementById('viewSub').textContent=titles[S.view][1];
-  const view = S.view==='overview'?renderOverview():S.view==='reservations'?renderReservations():S.view==='users'?renderUsers():renderProgress();
+  const view = S.view==='overview'?renderOverview():S.view==='reservations'?renderReservations():S.view==='users'?renderUsers():S.view==='papers'?renderPapers():renderProgress();
   document.getElementById('content').innerHTML = view;
 }
 function renderUser(){
@@ -1116,9 +1162,12 @@ document.getElementById('nav').addEventListener('click',e=>{
   if(S.view==='users'){ render(); loadUsers().then(render); }
   else if(S.view==='progress'){
     const filter = isAdmin() ? '' : (S.user?.username||'');
-    // If groups not loaded yet, load them in parallel with progress
     const p = (S.groups ? Promise.resolve() : loadGroups()).then(()=>loadProgress(filter));
     render(); p.then(render);
+  }
+  else if(S.view==='papers'){
+    const filter = isAdmin() ? '' : (S.user?.username||'');
+    render(); loadPapers(filter).then(render);
   }
   else render();
 });
