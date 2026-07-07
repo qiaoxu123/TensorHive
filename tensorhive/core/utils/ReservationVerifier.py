@@ -58,6 +58,9 @@ class ReservationVerifier:
         user_restrictions = user.get_restrictions(include_group=True)
         # get global restrictions or applied to selected resource
         restrictions = [r for r in user_restrictions if r.is_global or resource in r.resources]
+        # If no restrictions are configured, allow all reservations by default
+        if not restrictions:
+            return True
 
         # time interval required to create restriction
         start_date = reservation.start
