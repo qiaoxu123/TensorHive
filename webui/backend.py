@@ -495,7 +495,8 @@ def end_reservation(host):
         if r.get("isCancelled"): continue
         if r.get("userId") != user["id"]: continue
         try:
-            if parse(r["start"]) <= datetime.datetime.utcnow() <= parse(r["end"]):
+            now_aware = datetime.datetime.now(datetime.timezone.utc)
+            if parse(r["start"]) <= now_aware <= parse(r["end"]):
                 r2 = requests.put(TH_API + "/reservations/" + str(r["id"]),
                     headers={"Authorization": "Bearer "+user["token"], "Content-Type": "application/json"},
                     json={"end": now}, timeout=10)
