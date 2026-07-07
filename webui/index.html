@@ -1017,7 +1017,6 @@ document.getElementById('userModalBg').addEventListener('click',e=>{ if(e.target
 document.getElementById('rpCancel').onclick=closeResetPw;
 document.getElementById('rpSubmit').onclick=submitResetPw;
 document.getElementById('resetPwModalBg').addEventListener('click',e=>{ if(e.target.id==='resetPwModalBg')closeResetPw(); });
-// 进度录入
 // 用户管理按钮（事件委托）
 document.addEventListener('click',function(e){
   var btn=e.target.closest('button');
@@ -1025,6 +1024,9 @@ document.addEventListener('click',function(e){
   if(btn.classList.contains('pw-reset-btn')){
     openResetPw(parseInt(btn.dataset.uid),btn.dataset.uname);
   }else if(btn.classList.contains('pw-del-btn')){
+    deleteUser(parseInt(btn.dataset.uid),btn.dataset.uname);
+  }
+});
 
 applyTheme();
 if(S.access){ boot(); } else { showLogin(); }
