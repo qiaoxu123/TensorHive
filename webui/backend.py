@@ -739,23 +739,22 @@ def authorized_keys_export():
 @app.route("/ctl/progress")
 @require_auth
 def get_progress():
-    """Get progress entries. Optional ?user=name&days=90 filter."""
+    """Get progress entries with caching. ?user=name&days=365"""
     username = request.args.get("user", "")
-    days = int(request.args.get("days", 180))
+    days = int(request.args.get("days", 365))
     if username:
         rows = db_fetch("""
             SELECT p.id, u.username, p.entry_date, p.content
             FROM progress_entries p JOIN users u ON u.id=p.user_id
-            WHERE u.username=%s AND p.entry_date >= to_char(NOW() - INTERVAL '1 day' * %s, 'MM-DD')
+            WHERE u.username=%s
             ORDER BY p.entry_date DESC, p.id DESC LIMIT 500
-        """, (username, days))
+        """, (username,))
     else:
         rows = db_fetch("""
             SELECT p.id, u.username, p.entry_date, p.content
             FROM progress_entries p JOIN users u ON u.id=p.user_id
-            WHERE p.entry_date >= to_char(NOW() - INTERVAL '1 day' * %s, 'MM-DD')
             ORDER BY p.entry_date DESC, p.id DESC LIMIT 2000
-        """, (days,))
+        """, ())
     out = [{"id": r[0], "username": r[1], "date": r[2], "content": r[3]} for r in rows]
     return jsonify(out)
 

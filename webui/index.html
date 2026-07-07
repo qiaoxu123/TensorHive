@@ -61,27 +61,36 @@ a{color:inherit}
 .btn-ghost{background:transparent}
 .err{color:var(--urgent);font-size:12.5px;min-height:18px;margin-top:8px}
 /* ── 进度视图 ── */
-.progress-layout{display:flex;gap:20px;flex:1;overflow:hidden}
-.progress-sidebar{width:180px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--border);padding-right:12px}
-.progress-main{flex:1;overflow-y:auto}
-.pg-group-name{font-size:11px;font-weight:700;color:var(--content-muted);margin:12px 0 2px;text-transform:uppercase;letter-spacing:.5px}
-.pg-filter-item{font-size:13px;padding:5px 8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--content)}
-.pg-filter-item:hover{background:var(--panel)}
-.pg-filter-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
-.pg-dot{width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0}
-.pg-dot.live-dot{background:var(--green)}
-.git-log{margin-top:8px}
-.git-date{font-size:11px;font-weight:700;color:var(--content-subtle);margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:8px}
-.git-count{font-weight:400;color:var(--content-subtle)}
-.git-commit{display:flex;align-items:baseline;gap:10px;padding:5px 0 5px 4px;font-size:13px;line-height:1.6;border-left:2px solid var(--border);margin-left:3px;position:relative}
-.git-commit.mine{background:var(--accent-soft);border-left-color:var(--accent);border-radius:0 6px 6px 0;padding-left:10px;margin-left:0}
-.git-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-left:-12px;z-index:1}
-.git-author{font-weight:600;font-size:12px;white-space:nowrap;min-width:60px;padding:0 4px;border-radius:3px}
-.git-msg{flex:1;color:var(--content)}
-.git-actions{display:none;gap:4px;flex-shrink:0}
-.git-commit:hover .git-actions{display:flex}
-.git-actions button{background:none;border:none;cursor:pointer;font-size:13px;color:var(--content-subtle);padding:0 3px}
-.git-actions button:hover{color:var(--content)}
+.progress-layout{display:flex;gap:0;flex:1;overflow:hidden;height:100%}
+.progress-sidebar{width:210px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;border-right:1px solid var(--border);padding:12px 0;background:var(--bg)}
+.progress-sidebar .section-title{padding:0 14px 8px}
+.pg-grp{padding:0 0 6px}
+.pg-grp-name{font-size:10px;font-weight:700;color:var(--content-muted);padding:12px 14px 3px;text-transform:uppercase;letter-spacing:.8px;opacity:.6}
+.pg-item{padding:5px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--content);border-right:2px solid transparent;transition:all .1s}
+.pg-item:hover{background:var(--panel)}
+.pg-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-right-color:var(--accent)}
+.pg-item-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .2s}
+.pg-item-dot.has{background:var(--green);box-shadow:0 0 0 2px var(--bg),0 0 0 4px color-mix(in srgb,var(--green) 25%,transparent)}
+.pg-item-dot.all{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-right:2px}
+.progress-main{flex:1;overflow-y:auto;padding:16px 20px}
+.progress-main .section-title{margin-bottom:10px}
+.pg-feed{display:flex;flex-direction:column;gap:6px}
+.pg-day{margin-bottom:8px}
+.pg-day-label{font-size:11px;font-weight:700;color:var(--content-subtle);padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.pg-day-count{font-weight:400;font-size:10px;color:var(--content-subtle);background:var(--panel);padding:1px 7px;border-radius:10px}
+.pg-card{display:flex;gap:10px;padding:8px 10px;border-radius:8px;transition:all .1s;position:relative}
+.pg-card:hover{background:var(--panel)}
+.pg-card.mine{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
+.pg-card-line{width:2px;border-radius:2px;flex-shrink:0;margin-top:2px;min-height:20px}
+.pg-card-body{flex:1;min-width:0;font-size:13px;line-height:1.6;color:var(--content)}
+.pg-card-head{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.pg-card-avatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.pg-card-name{font-weight:600;font-size:12px}
+.pg-card-actions{display:none;gap:4px;margin-left:auto}
+.pg-card:hover .pg-card-actions{display:flex}
+.pg-card-actions button{background:none;border:none;cursor:pointer;font-size:12px;color:var(--content-subtle);padding:2px 5px;border-radius:4px}
+.pg-card-actions button:hover{background:var(--border);color:var(--content)}
+.pg-empty{color:var(--content-subtle);font-size:13px;padding:30px 0;text-align:center}
 
 /* ===== 应用骨架 ===== */
 #app{display:none;height:100%}
@@ -829,45 +838,70 @@ async function deleteUser(uid,name){
   catch(e){ toast('删除失败：'+e.message); }
 }
 
-/* ── 科研进度 ── */
-let _pf='', _pd=[];
-async function loadProgress(filter){ _pf=filter||''; const u=_pf?'/progress?user='+encodeURIComponent(_pf)+'&days=365':'/progress?days=365'; try{ _pd=await ctl(u); }catch(e){ _pd=[]; } }
-function personColor(n){ let h=0; for(let i=0;i<n.length;i++)h=(h<<5)-h+n.charCodeAt(i); const hue=Math.abs(h)%360; return {dot:'hsl('+hue+',80%,45%)'}; }
+/* ── 科研进度（缓存 + 并行加载） ── */
+let _pf='', _pd=null, _cachedPd={};
+function personColor(n){ let h=0; for(let i=0;i<n.length;i++)h=(h<<5)-h+n.charCodeAt(i); const hue=Math.abs(h)%360; return {bg:'hsl('+hue+',55%,50%)',line:'hsl('+hue+',60%,40%)'}; }
+async function loadProgress(filter, force){
+  _pf=filter||'';
+  if(!force && _cachedPd[_pf]){ _pd=_cachedPd[_pf]; return; }
+  const u=_pf?'/progress?user='+encodeURIComponent(_pf):'/progress';
+  try{ _pd=await ctl(u); _cachedPd[_pf]=_pd; }catch(e){ _pd=[]; }
+}
+// Prefetch progress data in background (at boot)
+function prefetchProgress(){
+  setTimeout(()=>{
+    ctl('/progress').then(d=>{ S._allPd=d||[]; }).catch(()=>{});
+    ctl('/groups').then(r=>{ S.groups=Object.entries(r||{}).map(([a,m])=>({advisor:a,members:m})); }).catch(()=>{});
+  }, 2000);
+}
 function renderProgress(){
+  if(!_pd){ return '<div class="progress-layout"><div class="progress-main"><div class="empty" style="padding:40px 0;text-align:center;color:var(--content-subtle)">加载中…</div></div></div>'; }
   const days={}; _pd.forEach(e=>{ if(!days[e.date])days[e.date]=[]; days[e.date].push(e); });
-  const dates=Object.keys(days).sort().reverse();
+  const dates=Object.keys(days).sort((a,b)=>{
+    const [ma,da]=a.split('.').map(Number), [mb,db]=b.split('.').map(Number);
+    return mb-ma||db-da;
+  });
+  // Sidebar
   let s='<div class="progress-sidebar"><div class="section-title"><h4>成员</h4></div>';
-  s+=`<div class="pg-filter-item ${!_pf?'active':''}" onclick="switchPF('')">全部</div>`;
+  s+=`<div class="pg-item ${!_pf?'active':''}" onclick="switchPF('')"><span class="pg-item-dot all"></span>全部</div>`;
   (S.groups||[]).forEach(g=>{
-    s+=`<div class="pg-group-name">${g.advisor}</div>`;
+    s+=`<div class="pg-grp-name">${g.advisor}</div><div class="pg-grp">`;
     (g.members||[]).forEach(m=>{
-      const ac=_pf===m.name?'active':''; const dot=m.has_progress?'<span class="pg-dot live-dot"></span>':'<span class="pg-dot"></span>';
-      s+=`<div class="pg-filter-item ${ac}" onclick="switchPF('${m.name}')">${dot}${m.name}</div>`;
+      const ac=_pf===m.name?'active':''; const dot=m.has_progress?'<span class="pg-item-dot has"></span>':'<span class="pg-item-dot"></span>';
+      s+=`<div class="pg-item ${ac}" onclick="switchPF('${m.name}')">${dot}${m.name}</div>`;
     });
+    s+=`</div>`;
   });
   s+='</div>';
+  // Main feed
   let h='<div class="progress-main"><div class="section-title"><h3>科研进度</h3>';
-  if(_pf) h+=`<span class="live">筛选: ${_pf}</span>`;
-  h+=`</div><div style="margin-bottom:12px"><button class="btn btn-primary" style="width:auto;padding:6px 14px" onclick="openPF()">＋ 记录本周进展</button></div>`;
-  if(!dates.length) h+=`<div class="empty">暂无进度记录</div>`;
-  h+=`<div class="git-log">`;
+  if(_pf) h+=`<span class="live" style="font-weight:500">${_pf} 的进展</span>`;
+  h+=`<button class="btn btn-primary" style="width:auto;padding:6px 14px;margin-left:auto" onclick="openPF()">＋ 记录进展</button></div>`;
+  if(!dates.length){ h+=`<div class="pg-empty">暂无进度记录${_pf?' — '+_pf+' 还没有记录':''}</div>`; }
+  h+='<div class="pg-feed">';
   dates.forEach(d=>{
-    h+=`<div class="git-date">${d} <span class="git-count">${days[d].length}</span></div>`;
+    h+=`<div class="pg-day"><div class="pg-day-label">${d} <span class="pg-day-count">${days[d].length}</span></div>`;
     days[d].forEach(e=>{
-      const c=personColor(e.username);
-      h+=`<div class="git-commit ${e.username===S.user?.username?'mine':''}">
-        <span class="git-dot" style="background:${c.dot}"></span>
-        <span class="git-author" style="color:${c.dot}">${e.username}</span>
-        <span class="git-msg">${escH(e.content)}</span>
-        ${e.username===S.user?.username||isAdmin()?`<span class="git-actions"><button onclick="editP(${e.id},'${escH(e.content).replace(/'/g,"\\'")}','${e.date}')">✎</button><button onclick="deleteP(${e.id})">✕</button></span>`:''}
+      const c=personColor(e.username); const me=e.username===S.user?.username;
+      h+=`<div class="pg-card ${me?'mine':''}">
+        <div class="pg-card-line" style="background:${c.line}"></div>
+        <div class="pg-card-body">
+          <div class="pg-card-head">
+            <div class="pg-card-avatar" style="background:${c.bg}">${e.username[0]}</div>
+            <span class="pg-card-name" style="color:${c.bg}">${e.username}</span>
+            ${me||isAdmin()?`<span class="pg-card-actions"><button onclick="editP(${e.id},'${escH(e.content).replace(/'/g,"\\'")}','${e.date}')">✎</button><button onclick="deleteP(${e.id})">✕</button></span>`:''}
+          </div>
+          <div class="pg-card-text">${escH(e.content)}</div>
+        </div>
       </div>`;
     });
+    h+='</div>';
   });
   h+='</div></div>';
   return `<div class="progress-layout">${s}${h}</div>`;
 }
 async function switchPF(name){ await loadProgress(name); render(); }
-async function loadGroups(){ try{ const r=await ctl('/groups'); S.groups=Object.entries(r).map(([a,m])=>({advisor:a,members:m})); }catch(e){ S.groups=[]; } }
+async function loadGroups(){ try{ const r=await ctl('/groups'); S.groups=Object.entries(r||{}).map(([a,m])=>({advisor:a,members:m})); }catch(e){ S.groups=[]; } }
 function escH(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 function openPF(){ document.getElementById('progModalBg').style.display='grid'; document.getElementById('progContent').focus(); const n=new Date(); document.getElementById('progDate').value=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
 function closePF(){ document.getElementById('progModalBg').style.display='none'; document.getElementById('progErr').textContent=''; }
@@ -875,10 +909,10 @@ async function submitP(){
   const d=document.getElementById('progDate').value.trim(); const c=document.getElementById('progContent').value.trim(); const e=document.getElementById('progErr');
   if(!c){ e.textContent='请填写进展内容'; return; }
   try{ await ctl('/progress',{method:'POST',body:JSON.stringify({content:c,date:d})}); toast('已记录'); closePF(); document.getElementById('progContent').value='';
-    await loadProgress(_pf); render(); } catch(ex){ e.textContent=ex.message||'记录失败'; }
+    _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ e.textContent=ex.message||'记录失败'; }
 }
-async function editP(id,c,d){ const nw=prompt('编辑进展内容',c); if(!nw)return; try{ await ctl('/progress/'+id,{method:'PUT',body:JSON.stringify({content:nw,date:d})}); toast('已更新'); await loadProgress(_pf); render(); } catch(ex){ toast('编辑失败：'+ex.message); } }
-async function deleteP(id){ if(!confirm('确认删除？'))return; try{ await ctl('/progress/'+id,{method:'DELETE'}); toast('已删除'); await loadProgress(_pf); render(); } catch(ex){ toast('删除失败：'+ex.message); } }
+async function editP(id,c,d){ const nw=prompt('编辑进展内容',c); if(!nw)return; try{ await ctl('/progress/'+id,{method:'PUT',body:JSON.stringify({content:nw,date:d})}); toast('已更新'); _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ toast('编辑失败：'+ex.message); } }
+async function deleteP(id){ if(!confirm('确认删除？'))return; try{ await ctl('/progress/'+id,{method:'DELETE'}); toast('已删除'); _cachedPd={}; await loadProgress(_pf,true); render(); } catch(ex){ toast('删除失败：'+ex.message); } }
 
 /* ---------- 主渲染 ---------- */
 function render(){
@@ -1064,6 +1098,7 @@ async function boot(){
   render();
   clearInterval(S.timer);
   S.timer=setInterval(()=>loadLive().catch(e=>{ if(String(e.message).includes('unauthorized'))logout(); }),4000);
+  prefetchProgress();
 }
 
 /* ---------- 事件绑定 ---------- */
@@ -1080,12 +1115,10 @@ document.getElementById('nav').addEventListener('click',e=>{
   S.view=b.dataset.view; [...document.querySelectorAll('#nav button')].forEach(x=>x.classList.toggle('active',x===b));
   if(S.view==='users'){ render(); loadUsers().then(render); }
   else if(S.view==='progress'){
-    render();
-    loadGroups().then(()=>{
-      // Non-admin: default to own progress only
-      const filter = isAdmin() ? '' : (S.user?.username||'');
-      return loadProgress(filter);
-    }).then(render);
+    const filter = isAdmin() ? '' : (S.user?.username||'');
+    // If groups not loaded yet, load them in parallel with progress
+    const p = (S.groups ? Promise.resolve() : loadGroups()).then(()=>loadProgress(filter));
+    render(); p.then(render);
   }
   else render();
 });
