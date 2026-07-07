@@ -44,7 +44,6 @@ class Reservation(CRUDModel, Base):  # type: ignore
         assert self.resource_id, 'Reservation must be related with a resource!'
         assert self.start, 'Reservation start time is invalid!'
         assert self.end, 'Reservation end time is invalid!'
-        assert self.duration >= self.__min_reservation_time, 'Reservation duration is too short!'
         assert self.duration <= self.__max_reservation_time, 'Reservation duration is too long!'
 
         assert 0 < len(self.title) < 60, 'Reservation title length has incorrect length!'
