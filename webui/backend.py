@@ -489,11 +489,16 @@ def workspace_ensure(host):
 def end_reservation(host):
     user = g.user
     now = datetime.datetime.utcnow().isoformat() + "Z"
+    # Map hostname to resource IDs
+    resources = th_get("/resources", user["token"])
+    res_host = {r["id"]: r["hostname"] for r in resources}
+    host_resource_ids = [rid for rid, h in res_host.items() if h == host]
     reservations = th_get("/reservations", user["token"])
     from dateutil.parser import parse
     for r in reservations:
         if r.get("isCancelled"): continue
         if r.get("userId") != user["id"]: continue
+        if r.get("resourceId") not in host_resource_ids: continue
         try:
             now_aware = datetime.datetime.now(datetime.timezone.utc)
             if parse(r["start"]) <= now_aware <= parse(r["end"]):

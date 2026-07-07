@@ -1022,8 +1022,10 @@ async function ensureWorkspace(host){
     toast('工作目录已就绪：'+r.path); }
   catch(e){ toast('初始化失败：'+e.message); } }
 async function endUse(host){
-  if(!confirm('确认结束当前使用？这将把预约结束时间设为现在。')) return;
-  try{ const r=await ctl(`/machines/${host}/end_reservation`,{method:'POST'}); toast(r.msg); await loadLive(); }
+  const rh=activeReservationForHost(host); if(!rh){ toast('没有活跃预约'); return; }
+  if(!confirm('确认结束当前使用？')) return;
+  try{ const r=await api('/reservations/'+rh.id,{method:'PUT',body:JSON.stringify({end:new Date().toISOString()})});
+    toast(r.msg||'已结束'); await loadLive(); }
   catch(e){ toast('操作失败：'+e.message); } }
 async function installKeys(host){
   try{ const r=await ctl(`/machines/${host}/install_keys`,{method:'POST'});
