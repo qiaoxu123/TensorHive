@@ -27,7 +27,7 @@ class RestrictionSchedule(CRUDModel, Base):  # type: ignore
     Note: All times and dates used are UTC.
     """
     __tablename__ = 'restriction_schedules'
-    __table_args__ = {'sqlite_autoincrement': True}
+    # __table_args__ = {'sqlite_autoincrement': True}  # PG incompatible, removed for Docker
     __public__ = ['id']
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -101,7 +101,7 @@ class RestrictionSchedule(CRUDModel, Base):  # type: ignore
 
 class Restriction2Schedule(Base):  # type: ignore
     __tablename__ = 'restriction2schedule'
-    __tableargs__ = {'sqlite_autoincrement': True}
+    # __tableargs__ = {'sqlite_autoincrement': True}  # PG incompatible, removed for Docker
 
     restriction_id = Column(Integer, ForeignKey('restrictions.id', ondelete='CASCADE'), primary_key=True)
     schedule_id = Column(Integer, ForeignKey('restriction_schedules.id', ondelete='CASCADE'), primary_key=True)

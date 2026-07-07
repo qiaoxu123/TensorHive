@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 class Reservation(CRUDModel, Base):  # type: ignore
     __tablename__ = 'reservations'
-    __table_args__ = {'sqlite_autoincrement': True}
+    # __table_args__ = {'sqlite_autoincrement': True}  # PG incompatible, removed for Docker
     __public__ = ['id', 'title', 'description', 'resource_id', 'user_id', 'gpu_util_avg', 'mem_util_avg', 'start',
                   'end', 'created_at', 'is_cancelled']
 

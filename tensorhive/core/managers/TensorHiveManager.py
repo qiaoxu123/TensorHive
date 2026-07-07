@@ -40,8 +40,11 @@ class TensorHiveManager(metaclass=Singleton):
         self.dedicated_ssh_key = ssh.init_ssh_key(PosixPath(SSH.KEY_FILE).expanduser())
 
         if not SSH.AVAILABLE_NODES:
-            log.error('[!] Empty ssh configuration. Please check {}'.format(SSH.HOSTS_CONFIG_FILE))
-            raise ConfigurationException
+            log.warning('[!] No hosts configured in {}. Monitoring/protection disabled until hosts are added.'.format(SSH.HOSTS_CONFIG_FILE))
+            self.connection_manager = None
+            self.service_manager = None
+            self.dedicated_ssh_key = None
+            return
 
         manager_ssh_key_path = SSH.KEY_FILE
         if SSH.TEST_ON_STARTUP:
@@ -110,6 +113,9 @@ class TensorHiveManager(metaclass=Singleton):
         return services
 
     def configure_services_from_config(self):
+        if self.connection_manager is None:
+            log.warning('[!] No hosts configured — skipping service initialization')
+            return
         services = self.instantiate_services_from_config()
         self.service_manager = ServiceManager(
             services=services,
@@ -117,9 +123,13 @@ class TensorHiveManager(metaclass=Singleton):
             connection_manager=self.connection_manager)
 
     def init(self):
+        if self.service_manager is None:
+            return
         log.info('[⚙] Initializing services {}...'.format(self.__class__.__name__))
         self.service_manager.start_all_services()
 
     def shutdown(self):
+        if self.service_manager is None:
+            return
         log.info('[⚙] Shutting down all services...')
         self.service_manager.shutdown_all_services()

@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 class Group(CRUDModel, RestrictionAssignee):  # type: ignore
     __tablename__ = 'groups'
-    __table_args__ = {'sqlite_autoincrement': True}
+    # __table_args__ = {'sqlite_autoincrement': True}  # PG incompatible, removed for Docker
     __public__ = ['id', 'name', 'is_default', 'created_at']
 
     id = Column(Integer, primary_key=True, autoincrement=True)

@@ -23,7 +23,7 @@ class JobStatus(enum.Enum):
 
 class Job(CRUDModel, Base):  # type: ignore
     __tablename__ = 'jobs'
-    __table_args__ = {'sqlite_autoincrement': True}
+    # __table_args__ = {'sqlite_autoincrement': True}  # PG incompatible, removed for Docker
     __public__ = ['id', 'name', 'description', 'user_id', 'start_at', 'stop_at']
 
     id = Column(Integer, primary_key=True, autoincrement=True)

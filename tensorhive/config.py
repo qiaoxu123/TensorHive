@@ -128,10 +128,19 @@ class SSH:
                 continue
 
             hostname = section
-            result[hostname] = {
+            entry = {
                 'user': hosts_config.get(hostname, 'user'),
                 'port': hosts_config.getint(hostname, 'port', fallback=22)
             }
+            # Optional: password-based auth
+            password = hosts_config.get(hostname, 'password', fallback=None)
+            if password:
+                entry['password'] = password
+            # Optional: per-host SSH key (overrides global key)
+            key_file = hosts_config.get(hostname, 'key_file', fallback=None)
+            if key_file:
+                entry['key_file'] = key_file
+            result[hostname] = entry
         return result
 
     def proxy_config_to_dict(path: str) -> Optional[Dict]:  # type: ignore
@@ -157,10 +166,22 @@ class DB:
     section = 'database'
     default_path = '~/.config/TensorHive/database.sqlite'
 
-    def uri_for_path(path: str) -> str:  # type: ignore
-        return 'sqlite:///{}'.format(PosixPath(path).expanduser())
+    def _build_uri() -> str:
+        """Build database URI from env vars (Docker) or config file (bare-metal)."""
+        import os
+        db_type = os.environ.get('TH_DB_TYPE') or config.get(section, 'type', fallback='sqlite')
+        if db_type == 'postgresql':
+            host = os.environ.get('TH_DB_HOST') or config.get(section, 'host', fallback='127.0.0.1')
+            port = os.environ.get('TH_DB_PORT') or config.get(section, 'port', fallback='5432')
+            name = os.environ.get('TH_DB_NAME') or config.get(section, 'name', fallback='tensorhive_db')
+            user = os.environ.get('TH_DB_USER') or config.get(section, 'user', fallback='tensorhive_app')
+            password = os.environ.get('TH_DB_PASSWORD') or config.get(section, 'password', fallback='')
+            return f'postgresql://{user}:{password}@{host}:{port}/{name}'
+        else:
+            path = config.get(section, 'path', fallback=DB.default_path)
+            return 'sqlite:///{}'.format(PosixPath(path).expanduser())
 
-    SQLALCHEMY_DATABASE_URI = uri_for_path(config.get(section, 'path', fallback=default_path))
+    SQLALCHEMY_DATABASE_URI = _build_uri()
     TEST_DATABASE_URI = 'sqlite://'  # Use in-memory (before: sqlite:///test_database.sqlite)
 
 

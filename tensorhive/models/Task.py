@@ -18,7 +18,7 @@ class TaskStatus(enum.Enum):
 
 class Task(CRUDModel, Base):  # type: ignore
     __tablename__ = 'tasks'
-    __table_args__ = {'sqlite_autoincrement': True}
+    # __table_args__ = {'sqlite_autoincrement': True}  # PG incompatible, removed for Docker
     __public__ = ['id', 'job_id', 'hostname', 'pid', 'command']
 
     id = Column(Integer, primary_key=True, autoincrement=True)

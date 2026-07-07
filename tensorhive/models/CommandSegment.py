@@ -17,7 +17,7 @@ class SegmentType(enum.Enum):
 
 class CommandSegment(CRUDModel, Base):  # type: ignore
     __tablename__ = 'command_segments'
-    __table_args__ = {'sqlite_autoincrement': True}
+    # __table_args__ = {'sqlite_autoincrement': True}  # PG incompatible, removed for Docker
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50), unique=True, nullable=False)

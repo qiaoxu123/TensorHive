@@ -38,13 +38,20 @@ def build_dedicated_config_for(host: Hostname, user: Username) -> Tuple[HostsCon
     """
     assert host and user, 'Arguments must not be None!'
     assert host in SSH.AVAILABLE_NODES
+    node = SSH.AVAILABLE_NODES[host]
     hosts_config = {
         host: {
             'user': user,
-            'pkey': SSH.KEY_FILE,
-            'port': SSH.AVAILABLE_NODES[host]['port']
+            'port': node['port'],
         }
     }
+    # Auth: prefer per-host key, then per-host password, then global key
+    if 'key_file' in node:
+        hosts_config[host]['pkey'] = node['key_file']
+    elif 'password' in node:
+        hosts_config[host]['password'] = node['password']
+    else:
+        hosts_config[host]['pkey'] = SSH.KEY_FILE
     # Read config extracted from hosts_config.ini (proxy is common for all hosts)
     pconfig = SSH.PROXY
     return hosts_config, pconfig
@@ -107,6 +114,8 @@ def get_stdout(host: Hostname, output: pssh.output.HostOutput) -> Optional[str]:
         host_result = output[host]
         if host_result.exception:
             raise host_result.exception
+        if host_result.stdout is None:
+            return None
         return '\n'.join(list(host_result.stdout))
     except KeyError:
         log.error('Could not unwrap HostOutput object for {}'.format(host))

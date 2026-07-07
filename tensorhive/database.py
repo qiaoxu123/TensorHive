@@ -16,7 +16,7 @@ if bool(os.environ.get('PYTEST')):
 else:
     db_uri = DB.SQLALCHEMY_DATABASE_URI
 
-engine = create_engine(db_uri, convert_unicode=True, echo=False)
+engine = create_engine(db_uri, echo=False, pool_pre_ping=True, pool_size=10, pool_recycle=3600)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 Base = declarative_base()
@@ -57,9 +57,8 @@ def _schema_version_is_current(alembic_config, connection):
     script_directory = ScriptDirectory.from_config(alembic_config)
     current_revision = migration_ctx.get_current_revision()
     if current_revision is None:
-        log.error('[✘] DB has not been stamped. This makes automatic migration impossible. If you have been using TH'
-                  '< 0.3.4, use alembic to upgrade the DB, otherwise please report a bug. Now using the DB as is...')
-        return True
+        log.warning('[•] DB has not been stamped (fresh DB?), triggering schema init')
+        return False
     else:
         return current_revision == script_directory.get_current_head()
 
@@ -79,16 +78,33 @@ def ensure_db_with_current_schema() -> None:
     if not check_if_db_exists():
         initialize_db(alembic_config)
     else:
+        # Check if tables actually exist (fresh PG DB has no tables but DB exists)
         with engine.begin() as connection:
-            if _schema_version_is_current(alembic_config, connection):
-                log.info('[✔] DB up to date')
-            else:
-                log.warning('[•] DB schema is out of date, trying to upgrade automatically')
-                _upgrade_db_schema(alembic_config)
+            inspector_ok = True
+            try:
+                from sqlalchemy import inspect
+                insp = inspect(engine)
+                existing_tables = insp.get_table_names()
+                if not existing_tables:
+                    inspector_ok = False
+                    log.warning('[•] DB exists but has no tables, initializing schema')
+            except Exception:
+                inspector_ok = False
+        if not inspector_ok:
+            initialize_db(alembic_config)
+        else:
+            with engine.begin() as connection:
+                if _schema_version_is_current(alembic_config, connection):
+                    log.info('[✔] DB up to date')
+                else:
+                    log.warning('[•] DB schema is out of date, trying to upgrade automatically')
+                    _upgrade_db_schema(alembic_config)
 
 
 def _fk_pragma_on_connect(dbapi_con, con_record):
-    dbapi_con.execute('pragma foreign_keys=ON')
+    # SQLite only: enable FK enforcement. PG enforces FKs natively.
+    if 'sqlite' in str(engine.url):
+        dbapi_con.execute('pragma foreign_keys=ON')
 
 
 event.listen(engine, 'connect', _fk_pragma_on_connect)

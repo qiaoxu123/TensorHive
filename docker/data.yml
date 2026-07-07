@@ -1,0 +1,82 @@
+additionalProperties:
+  formFields:
+    - default: 8090
+      edit: true
+      envKey: PANEL_APP_PORT_HTTP
+      labelEn: Frontend Port
+      labelZh: 前端端口
+      required: true
+      rule: paramPort
+      type: number
+      label:
+        en: Frontend Port
+        zh: 前端端口
+    - default: ""
+      envKey: PANEL_DB_HOST
+      key: postgresql
+      labelEn: PostgreSQL Database Service
+      labelZh: PostgreSQL 数据库服务
+      required: true
+      type: service
+      label:
+        en: PostgreSQL Database Service
+        zh: PostgreSQL 数据库服务
+    - default: tensorhive_db
+      envKey: PANEL_DB_NAME
+      labelEn: Database Name
+      labelZh: 数据库名
+      required: true
+      rule: paramCommon
+      type: text
+      label:
+        en: Database Name
+        zh: 数据库名
+    - default: tensorhive_app
+      envKey: PANEL_DB_USER
+      labelEn: Database User
+      labelZh: 数据库用户
+      required: true
+      rule: paramCommon
+      type: text
+      label:
+        en: Database User
+        zh: 数据库用户
+    - default: Th2026SecretDB!@#
+      envKey: PANEL_DB_USER_PASSWORD
+      labelEn: Database Password
+      labelZh: 数据库用户密码
+      required: true
+      type: password
+      label:
+        en: Database Password
+        zh: 数据库用户密码
+    - default: ChangeMe123!
+      edit: true
+      envKey: TH_ADMIN_PASSWORD
+      labelEn: Admin Password
+      labelZh: 管理员密码
+      required: true
+      type: password
+      label:
+        en: Admin Password
+        zh: 管理员密码
+    - default: 2
+      edit: true
+      envKey: CPUS
+      labelEn: CPU Limit
+      labelZh: CPU 限制
+      required: true
+      type: number
+      label:
+        en: CPU Limit
+        zh: CPU 限制
+    - default: 512M
+      edit: true
+      envKey: MEMORY_LIMIT
+      labelEn: Memory Limit
+      labelZh: 内存限制
+      required: true
+      type: text
+      label:
+        en: Memory Limit
+        zh: 内存限制

@@ -1,0 +1,9 @@
+.git
+__pycache__
+*.pyc
+.env
+*.log
+*.sqlite
+*.db
+docker/.env
+

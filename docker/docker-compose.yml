@@ -1,0 +1,34 @@
+networks:
+  1panel-network:
+    external: true
+
+services:
+  tensorhive:
+    container_name: ${CONTAINER_NAME:-1Panel-tensorhive-CrDp}
+    image: tensorhive:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: ${CPUS:-2}
+          memory: ${MEMORY_LIMIT:-512M}
+    environment:
+      - TH_DB_TYPE=postgresql
+      - TH_DB_HOST=${PANEL_DB_HOST:-postgresql}
+      - TH_DB_PORT=5432
+      - TH_DB_NAME=${PANEL_DB_NAME:-tensorhive_db}
+      - TH_DB_USER=${PANEL_DB_USER:-tensorhive_app}
+      - TH_DB_PASSWORD=${PANEL_DB_USER_PASSWORD:-Th2026SecretDB!@#}
+      - TH_API_HOST=0.0.0.0
+      - TH_ADMIN_USER=xqiao
+      - TH_ADMIN_EMAIL=george.x.qiao@gmail.com
+      - TH_ADMIN_PASSWORD=${TH_ADMIN_PASSWORD:-ChangeMe123!}
+    ports:
+      - "${PANEL_APP_PORT_HTTP:-8090}:8090"
+    volumes:
+      - /opt/1panel/apps/tensorhive/data:/root/.config/TensorHive
+    restart: unless-stopped
+    networks:
+      - 1panel-network
