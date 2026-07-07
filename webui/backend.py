@@ -362,11 +362,11 @@ def machine_users(host):
     """Detect active users on a machine by checking running processes."""
     # Get non-system users with active Python/Cuda/Shell processes
     cmd = (
-        "ps -eo user,pid,pcpu,pmem,comm --no-headers 2>/dev/null | "
-        "awk '{u=$1; if(u!=\"root\" && u!=\"nobody\" && u!=\"www-data\" && "
-        "u!=\"messagebus\" && u!=\"syslog\" && u!=\"_\" && u!=\"systemd\" && "
-        "u!=\"daemon\") print}' | "
-        "sort | awk '{users[$1]++} END {for(u in users) print u,users[u]}'"
+        "ps -eo user:20,pid,pcpu,pmem,comm --no-headers 2>/dev/null | "
+        "awk '!/^(root|nobody|www-data|messagebus|syslog|_|systemd|daemon|"
+        "cups|rtkit|gnome|message|lp|nvidia|kernoops|avahi|xrdp|polkitd|colord|"
+        "dhcpcd|dnsmasq|gdm|sd|ntp|uuidd|usbmux|whoopsie|tss|fwupd|speech)"
+        "/ && !/^[0-9]+$/ {users[$1]++} END {for(u in users) print u,users[u]}'"
     )
     try:
         out = ssh_run(host, cmd)
