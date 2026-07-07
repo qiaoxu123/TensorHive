@@ -496,6 +496,7 @@ async function loadLive(){
 /* ---------- 工具 ---------- */
 const mv=(o,k)=> (o&&o[k]&&typeof o[k].value!=='undefined')?o[k].value:null;
 const initials=s=>(s||'?').slice(0,2).toUpperCase();
+function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 function loadColor(p){ if(p==null)return 'var(--content-subtle)'; if(p<50)return 'var(--ok)'; if(p<85)return 'var(--warn)'; return 'var(--urgent)'; }
 function fmtRange(a,b){
   const f=x=>{const d=new Date(x); if(isNaN(d))return x; const p=n=>String(n).padStart(2,'0');
