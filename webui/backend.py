@@ -29,7 +29,8 @@ from tensorhive.core import ssh
 from tensorhive.config import SSH
 
 # ----------------------------------------------------------------------------
-JWT_SECRET = "jwt-some-secret"          # 与 TensorHive main_config 现用值一致
+JWT_SECRET = os.environ.get('TH_JWT_SECRET', 'jwt-some-secret')
+# 生产环境务必通过环境变量 TH_JWT_SECRET 设置强随机密钥
 TH_API = "http://localhost:1111/api"    # 本机后端调 TensorHive 用 localhost
 def get_db():
     """PostgreSQL connection (Docker env or local defaults)."""
@@ -66,8 +67,14 @@ def db_exec(sql, params=None):
     con.close()
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}},
+CORS(app, resources={r"/*": {"origins": os.environ.get('TH_CORS_ORIGIN', '*')}},
      allow_headers=["Authorization", "Content-Type"], methods=["GET", "POST", "OPTIONS"])
+
+# Flask session secret (for production)
+app.secret_key = os.environ.get('TH_FLASK_SECRET', os.urandom(24).hex())
+
+# Login rate limiter (simple in-memory)
+_login_attempts = {}  # key -> (count, first_attempt_time)
 
 _hw_cache = {}   # host -> (ts, data)
 
@@ -336,6 +343,13 @@ def verify_pw(password, stored_hash):
 @app.route("/ctl/login", methods=["POST"])
 def login():
     import datetime
+    # Rate limit: max 6 attempts per minute per IP
+    client_ip = request.remote_addr or 'unknown'
+    now_ts = time.time()
+    _login_attempts[client_ip] = [c for c in _login_attempts.get(client_ip, []) if now_ts - c[0] < 60]
+    if len(_login_attempts[client_ip]) >= 6:
+        return jsonify({"msg": "登录过于频繁，请60秒后再试"}), 429
+    _login_attempts[client_ip].append((now_ts, ''))
     body = request.get_json(silent=True) or {}
     login_id = (body.get("username") or body.get("email") or "").strip()
     password = (body.get("password") or "").strip()
@@ -829,8 +843,10 @@ def get_groups():
     return jsonify(result)
 
 # ── 论文追踪（从 acta PG 库读取） ──
-ACTA_DB_HOST = os.environ.get('TH_DB_HOST', 'postgresql')  # Docker DNS for PG in 1panel-network
-ACTA_DB = dict(host=ACTA_DB_HOST, port=5432, user='user_Q8mjjw', password='password_kfwteh')
+ACTA_DB_HOST = os.environ.get('TH_DB_HOST', 'postgresql')
+ACTA_DB = dict(host=ACTA_DB_HOST, port=5432,
+               user=os.environ.get('ACTA_DB_USER', 'user_Q8mjjw'),
+               password=os.environ.get('ACTA_DB_PASSWORD', 'password_kfwteh'))
 
 def _acta_conn():
     return psycopg2.connect(host=ACTA_DB['host'], port=ACTA_DB['port'],

@@ -25,6 +25,9 @@ services:
       - TH_ADMIN_USER=xqiao
       - TH_ADMIN_EMAIL=george.x.qiao@gmail.com
       - TH_ADMIN_PASSWORD=${TH_ADMIN_PASSWORD:-ChangeMe123!}
+      - TH_JWT_SECRET=${TH_JWT_SECRET:-46a84d3f716566790ad481dbc531b6a6075e29bf9483c103158a9c97b908c8dc}
+      - TH_FLASK_SECRET=${TH_FLASK_SECRET:-9fcd88b5125bbcb5c0b598d60387234970152c303073088def6490be030514ee}
+      - TH_CORS_ORIGIN=${TH_CORS_ORIGIN:-*}
     ports:
       - "${PANEL_APP_PORT_HTTP:-8090}:8090"
     volumes:

@@ -24,6 +24,9 @@ password = ${TH_DB_PASSWORD:-}
 
 [ssh]
 key_file = $CONFIG_DIR/ssh_key
+
+[auth]
+secret_key = ${TH_JWT_SECRET:-jwt-some-secret}
 MAINEOF
 
 # hosts_config.ini (empty template with docs)
