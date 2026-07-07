@@ -310,7 +310,7 @@ class AUTH:
             return fallback
 
     FLASK_JWT = {
-        'SECRET_KEY': config.get(section, 'secrect_key', fallback='jwt-some-secret'),
+        'SECRET_KEY': config.get(section, 'secret_key', fallback=config.get(section, 'secrect_key', fallback='jwt-some-secret')),
         'JWT_BLACKLIST_ENABLED': config.getboolean(section, 'jwt_blacklist_enabled', fallback=True),
         'JWT_BLACKLIST_TOKEN_CHECKS': config_get_parsed('jwt_blacklist_token_checks', fallback=['access', 'refresh']),
         'BUNDLE_ERRORS': config.getboolean(section, 'bundle_errors', fallback=True),

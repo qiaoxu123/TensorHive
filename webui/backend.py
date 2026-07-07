@@ -29,8 +29,14 @@ from tensorhive.core import ssh
 from tensorhive.config import SSH
 
 # ----------------------------------------------------------------------------
-JWT_SECRET = os.environ.get('TH_JWT_SECRET', 'jwt-some-secret')
-# 生产环境务必通过环境变量 TH_JWT_SECRET 设置强随机密钥
+# Read JWT secret from TensorHive config (same source as API for compatibility)
+try:
+    import configparser
+    _cfg = configparser.ConfigParser()
+    _cfg.read(os.path.expanduser('~/.config/TensorHive/main_config.ini'))
+    JWT_SECRET = _cfg.get('auth', 'secret_key', fallback=_cfg.get('auth', 'secrect_key', fallback='jwt-some-secret'))
+except Exception:
+    JWT_SECRET = 'jwt-some-secret'
 TH_API = "http://localhost:1111/api"    # 本机后端调 TensorHive 用 localhost
 def get_db():
     """PostgreSQL connection (Docker env or local defaults)."""
